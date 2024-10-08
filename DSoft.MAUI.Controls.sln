@@ -3,10 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.3.32804.467
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PinchZoomImageMauiSample", "PinchZoomImageMauiSample\PinchZoomImageMauiSample.csproj", "{74E63B8D-90F9-43C3-BFEC-8E07177A2C27}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DSoft.MAUI.PinchPanZoomImage", "DSoft.MAUI.PinchZoomImage\DSoft.MAUI.PinchPanZoomImage.csproj", "{609C3D42-D1D1-4FCA-86DE-C8C222177FBF}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".ci", ".ci", "{7E6E0FED-0ADD-4873-BC53-DE29B110CC60}"
 	ProjectSection(SolutionItems) = preProject
 		azure-pipelines-mergetest.yml = azure-pipelines-mergetest.yml
@@ -15,22 +11,26 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".ci", ".ci", "{7E6E0FED-0AD
 		README.md = README.md
 	EndProjectSection
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DSoft.Maui.Controls", "DSoft.MAUI.Controls\DSoft.Maui.Controls.csproj", "{A00A422D-4EA7-41ED-9AD1-147A951DA100}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MauiSampleApp", "MauiSampleApp\MauiSampleApp.csproj", "{7E3EB578-E2B3-499A-BB97-EFC2FBD9BB07}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{74E63B8D-90F9-43C3-BFEC-8E07177A2C27}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{74E63B8D-90F9-43C3-BFEC-8E07177A2C27}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{74E63B8D-90F9-43C3-BFEC-8E07177A2C27}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
-		{74E63B8D-90F9-43C3-BFEC-8E07177A2C27}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{74E63B8D-90F9-43C3-BFEC-8E07177A2C27}.Release|Any CPU.Build.0 = Release|Any CPU
-		{74E63B8D-90F9-43C3-BFEC-8E07177A2C27}.Release|Any CPU.Deploy.0 = Release|Any CPU
-		{609C3D42-D1D1-4FCA-86DE-C8C222177FBF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{609C3D42-D1D1-4FCA-86DE-C8C222177FBF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{609C3D42-D1D1-4FCA-86DE-C8C222177FBF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{609C3D42-D1D1-4FCA-86DE-C8C222177FBF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A00A422D-4EA7-41ED-9AD1-147A951DA100}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A00A422D-4EA7-41ED-9AD1-147A951DA100}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A00A422D-4EA7-41ED-9AD1-147A951DA100}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A00A422D-4EA7-41ED-9AD1-147A951DA100}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7E3EB578-E2B3-499A-BB97-EFC2FBD9BB07}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7E3EB578-E2B3-499A-BB97-EFC2FBD9BB07}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7E3EB578-E2B3-499A-BB97-EFC2FBD9BB07}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{7E3EB578-E2B3-499A-BB97-EFC2FBD9BB07}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7E3EB578-E2B3-499A-BB97-EFC2FBD9BB07}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7E3EB578-E2B3-499A-BB97-EFC2FBD9BB07}.Release|Any CPU.Deploy.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

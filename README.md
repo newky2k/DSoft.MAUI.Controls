@@ -13,15 +13,15 @@ Both views are 100% MAUI and do not rely on platform implementations.
 
 |Name|Info|
 | ------------------- | ------------------- | 
-|DSoft.MAUI.PinchPanZoomImage|[![NuGet](https://buildstats.info/nuget/DSoft.MAUI.PinchPanZoomImage)](https://www.nuget.org/packages/DSoft.MAUI.PinchPanZoomImage)|
+|DSoft.Maui.Controls|[![NuGet](https://buildstats.info/nuget/DSoft.Maui.Controls)](https://www.nuget.org/packages/DSoft.Maui.Controls)|
 
 # Usage
 
 Add the package from Nuget, either from NuGet Package Manager or command line
 
-        dotnet add package DSoft.MAUI.PinchPanZoomImage
+        dotnet add package DSoft.Maui.Controls
 
-PinchPanZoomImage is a MAUI library so requires no dependency injection calls to initialise.  You can jump straight in.
+DSoft.Maui.Controls is a MAUI library so requires no dependency injection calls to initialise.  You can jump straight in.
  
 ## PinchZoom View
 
@@ -30,7 +30,7 @@ PinchPanZoomImage is a MAUI library so requires no dependency injection calls to
 You will need to add a namespace reference to your xaml file
 
 ```csharp
-  xmlns:pinch="clr-namespace:DSoft.MAUI.PinchPanZoomImage;assembly=DSoft.MAUI.PinchPanZoomImage"  
+  xmlns:mauic="clr-namespace:DSoft.Maui.Controls;assembly=DSoft.Maui.Controls"  
 ```
 
 ## Why MauiPanPinchContainer?
@@ -42,9 +42,9 @@ Honestly, the code is all mathematical calculations, and I don't fully understan
 There are no plans to release a NuGet version for the time being, as PanPinchContainer is still very simple in its functionality, with hard-coded parameters, lack of flexibility, and no customizable dependency properties
 
 ```xaml
-<PanPinchContainer>
-    <Image Source="hello_maui.jpg" />
-<PanPinchContainer>     
+<mauic:PanPinchContainer>
+    <Image Source="dotnet_bot.png" />
+</mauic:PanPinchContainer> 
 ```
 
 ## Features
