@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+              xmlns:pinch="clr-namespace:DSoft.MAUI.PinchZoomImage;assembly=DSoft.MAUI.PinchZoomImage" 
+             x:Class="PinchZoomImageMauiSample.MainPage">
+
+    <StackLayout HorizontalOptions="CenterAndExpand" VerticalOptions="CenterAndExpand" >
+        <Label VerticalOptions="Start" HorizontalOptions="Start" Text="This Is Pinch and Pan for any image" FontSize="20" VerticalTextAlignment="Center"/>
+
+        <pinch:PinchZoom>
+            <pinch:PinchZoom.Content>
+                <Image
+                Source="dotnet_bot.png"
+                SemanticProperties.Description="Cute dot net bot waving hi to you!"
+                HorizontalOptions="Center" />
+            </pinch:PinchZoom.Content>
+        </pinch:PinchZoom>
+    </StackLayout>
+
+</ContentPage>
