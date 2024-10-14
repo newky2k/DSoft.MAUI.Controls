@@ -4,9 +4,7 @@
              xmlns:mauic="clr-namespace:DSoft.Maui.Controls;assembly=DSoft.Maui.Controls"
              x:Class="MauiSampleApp.MainPage">
 
-    <VerticalStackLayout>
-        <mauic:PanPinchContainer>
-            <Image Source="dotnet_bot.png" />
-        </mauic:PanPinchContainer>
-    </VerticalStackLayout>
+    <mauic:PanPinchContainer>
+        <Image Source="dotnet_bot.png" />
+    </mauic:PanPinchContainer>
 </ContentPage>

@@ -13,7 +13,7 @@ namespace DSoft.Maui.Controls
 
         private readonly PinchGestureRecognizer _pinchGestureRecognizer;
 
-        private double _currentScale = 1;
+        private double _currentScale = 3;
 
         private bool _isPanEnabled = true;
 
@@ -21,7 +21,7 @@ namespace DSoft.Maui.Controls
 
         private double _panY;
 
-        private double _startScale = 1;
+        private double _startScale = 3;
 
         public PanPinchContainer()
         {
@@ -48,8 +48,8 @@ namespace DSoft.Maui.Controls
 
             if (child is View view)
             {
-                view.HorizontalOptions = LayoutOptions.Center;
-                view.VerticalOptions = LayoutOptions.Center;
+                //view.HorizontalOptions = LayoutOptions.Center;
+                //view.VerticalOptions = LayoutOptions.Center;
             }
         }
 
