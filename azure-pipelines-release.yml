@@ -16,7 +16,7 @@ pool:
   vmImage: 'windows-latest'
 
 variables:
-  solution: '**/*.sln'
+  solution: '**/*.slnx'
   buildPlatform: 'Any CPU'
   buildConfiguration: 'Release'
   DotNetVersion: '10.x'
@@ -40,7 +40,7 @@ steps:
   inputs:
     targetType: 'inline'
     script: 
-      dotnet workload install android ios maccatalyst tvos macos maui wasm-tools
+      dotnet workload restore
 
 - task: DotNetCoreCLI@2
   displayName: dotnet restore
