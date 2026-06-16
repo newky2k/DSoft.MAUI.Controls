@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/.ci/">
+    <File Path="AGENTS.md" />
+    <File Path="azure-pipelines-mergetest.yml" />
+    <File Path="azure-pipelines-release.yml" />
+    <File Path="Directory.Build.props" />
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="DSoft.Maui.Controls.Core/DSoft.Maui.Controls.Core.csproj" />
+  <Project Path="DSoft.MAUI.Controls/DSoft.Maui.Controls.csproj" />
+  <Project Path="MauiSampleApp/MauiSampleApp.csproj">
+    <Deploy />
+  </Project>
+</Solution>

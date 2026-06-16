@@ -91,6 +91,20 @@
 
             await Navigation.PushModalAsync(new NavigationPage(dlg));
         }
+
+        private async void OnSpinnerPickerPageClicked(object sender, EventArgs e)
+        {
+            var dlg = new SpinnerPickerPage();
+
+            await Navigation.PushModalAsync(new NavigationPage(dlg));
+        }
+
+        private async void OnDatePickerPageClicked(object sender, EventArgs e)
+        {
+            var dlg = new DatePickerPage();
+
+            await Navigation.PushModalAsync(new NavigationPage(dlg));
+        }
     }
 
 }

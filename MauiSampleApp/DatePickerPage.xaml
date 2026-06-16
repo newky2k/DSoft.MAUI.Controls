@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:mauic="http://dsoft.maui/schemas/controls"
+             x:Class="MauiSampleApp.DatePickerPage"
+             Title="Date Picker">
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Close" Clicked="OnCloseClicked" />
+    </ContentPage.ToolbarItems>
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="16" Padding="16">
+
+            <!-- Mode selector -->
+            <Label Text="PICKER MODE"
+                   FontSize="12" FontAttributes="Bold"
+                   TextColor="#8E8E93" Margin="4,0,0,0" />
+
+            <mauic:SegmentedControl x:Name="ModeSegment"
+                                    SelectedIndex="0"
+                                    SegmentSelected="OnModeChanged">
+                <mauic:SegmentedControl.ItemsSource>
+                    <x:Array Type="{x:Type x:String}">
+                        <x:String>Date</x:String>
+                        <x:String>Time</x:String>
+                        <x:String>Date &amp; Time</x:String>
+                    </x:Array>
+                </mauic:SegmentedControl.ItemsSource>
+            </mauic:SegmentedControl>
+
+            <!-- Picker -->
+            <Border Stroke="LightGray" StrokeThickness="1" BackgroundColor="White" Padding="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="14" />
+                </Border.StrokeShape>
+                <mauic:DatePickerView x:Name="Picker"
+                                      DateSelected="OnDateSelected"
+                                      DateRangeSelected="OnDateRangeSelected"
+                                      TimeChanged="OnTimeChanged" />
+            </Border>
+
+            <!-- Options -->
+            <Label Text="OPTIONS"
+                   FontSize="12" FontAttributes="Bold"
+                   TextColor="#8E8E93" Margin="4,0,0,0" />
+
+            <Border Stroke="LightGray" StrokeThickness="1" BackgroundColor="White" Padding="12,0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+                <VerticalStackLayout>
+                    <Grid ColumnDefinitions="*,Auto" HeightRequest="48">
+                        <Label Text="Range Selection" VerticalOptions="Center" FontSize="15" />
+                        <Switch x:Name="RangeSwitch" Grid.Column="1"
+                                Toggled="OnRangeToggled" />
+                    </Grid>
+                    <BoxView HeightRequest="1" Color="LightGray" />
+                    <Grid ColumnDefinitions="*,Auto" HeightRequest="48">
+                        <Label Text="24-Hour Format" VerticalOptions="Center" FontSize="15" />
+                        <Switch x:Name="HourFormatSwitch" Grid.Column="1"
+                                Toggled="OnHourFormatToggled" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Result -->
+            <Label x:Name="ResultLabel"
+                   HorizontalOptions="Center"
+                   FontSize="15"
+                   TextColor="DarkGray"
+                   Text="Selected: —" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -17,6 +17,8 @@
             <Button Margin="30,5,30,5" Text="Signature Pad" Clicked="OnSignaturePadPageClicked" />
             <Button Margin="30,5,30,5" Text="Tab View" Clicked="OnTabViewPageClicked" />
             <Button Margin="30,5,30,5" Text="Data Grid" Clicked="OnDataGridPageClicked" />
+            <Button Margin="30,5,30,5" Text="Spinner Picker" Clicked="OnSpinnerPickerPageClicked" />
+            <Button Margin="30,5,30,5" Text="Date Picker" Clicked="OnDatePickerPageClicked" />
         </VerticalStackLayout>
     </ScrollView>
     

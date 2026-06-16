@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:mauic="http://dsoft.maui/schemas/controls"
+             x:Class="MauiSampleApp.SpinnerPickerPage"
+             Title="Spinner Picker">
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Close" Clicked="OnCloseClicked" />
+    </ContentPage.ToolbarItems>
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="20" Padding="20">
+
+            <!-- Date-style demo: Month / Day / Year side by side -->
+            <Label Text="Date picker (looping)" FontSize="20" FontAttributes="Bold" HorizontalOptions="Center" />
+
+            <Border Stroke="LightGray" StrokeThickness="1" BackgroundColor="White" Padding="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="12" />
+                </Border.StrokeShape>
+                <Grid ColumnDefinitions="*,*,*" Padding="8,0">
+                    <mauic:SpinnerPickerView x:Name="MonthPicker"
+                                             Grid.Column="0"
+                                             VisibleItemCount="5"
+                                             ItemHeight="44"
+                                             IsLooping="True"
+                                             TextColor="Gray"
+                                             SelectedTextColor="Black"
+                                             SelectorColor="LightGray"
+                                             SelectionChanged="OnSelectionChanged" />
+                    <mauic:SpinnerPickerView x:Name="DayPicker"
+                                             Grid.Column="1"
+                                             VisibleItemCount="5"
+                                             ItemHeight="44"
+                                             IsLooping="True"
+                                             TextColor="Gray"
+                                             SelectedTextColor="Black"
+                                             SelectorColor="LightGray"
+                                             SelectionChanged="OnSelectionChanged" />
+                    <mauic:SpinnerPickerView x:Name="YearPicker"
+                                             Grid.Column="2"
+                                             VisibleItemCount="5"
+                                             ItemHeight="44"
+                                             TextColor="Gray"
+                                             SelectedTextColor="Black"
+                                             SelectorColor="LightGray"
+                                             SelectionChanged="OnSelectionChanged" />
+                </Grid>
+            </Border>
+
+            <Label x:Name="SelectionLabel"
+                   HorizontalOptions="Center"
+                   FontSize="16"
+                   TextColor="DarkGray"
+                   Text="Selected: —" />
+
+            <!-- DisplayMemberPath example -->
+            <Label Text="DisplayMemberPath" FontSize="20" FontAttributes="Bold" HorizontalOptions="Center" />
+
+            <Border Stroke="LightGray" StrokeThickness="1" BackgroundColor="White" Padding="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="12" />
+                </Border.StrokeShape>
+                <mauic:SpinnerPickerView x:Name="CountryPicker"
+                                         VisibleItemCount="5"
+                                         ItemHeight="48"
+                                         FontSize="15"
+                                         IsLooping="True"
+                                         DisplayMemberPath="Name"
+                                         TextColor="Gray"
+                                         SelectedTextColor="Black"
+                                         SelectorColor="CornflowerBlue"
+                                         SelectionChanged="OnCountrySelectionChanged" />
+            </Border>
+
+            <Label x:Name="CountryLabel"
+                   HorizontalOptions="Center"
+                   FontSize="16"
+                   TextColor="DarkGray"
+                   Text="Selected: —" />
+
+            <!-- ItemTemplate example -->
+            <Label Text="ItemTemplate" FontSize="20" FontAttributes="Bold" HorizontalOptions="Center" />
+
+            <Border Stroke="LightGray" StrokeThickness="1" BackgroundColor="White" Padding="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="12" />
+                </Border.StrokeShape>
+                <mauic:SpinnerPickerView x:Name="ColorPicker"
+                                         VisibleItemCount="3"
+                                         ItemHeight="56"
+                                         IsLooping="True"
+                                         SelectorColor="DimGray"
+                                         SelectionChanged="OnColorSelectionChanged">
+                    <mauic:SpinnerPickerView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid HeightRequest="56" ColumnDefinitions="24,*" Padding="16,0" ColumnSpacing="12">
+                                <BoxView Grid.Column="0"
+                                         WidthRequest="20"
+                                         HeightRequest="20"
+                                         CornerRadius="10"
+                                         VerticalOptions="Center"
+                                         Color="{Binding Swatch}" />
+                                <Label Grid.Column="1"
+                                       Text="{Binding Name}"
+                                       VerticalOptions="Center"
+                                       FontSize="16"
+                                       TextColor="Black" />
+                            </Grid>
+                        </DataTemplate>
+                    </mauic:SpinnerPickerView.ItemTemplate>
+                </mauic:SpinnerPickerView>
+            </Border>
+
+            <Label x:Name="ColorLabel"
+                   HorizontalOptions="Center"
+                   FontSize="16"
+                   TextColor="DarkGray"
+                   Text="Selected: —" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
