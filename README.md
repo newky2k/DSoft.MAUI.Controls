@@ -149,8 +149,6 @@ You will need to add a namespace reference to your xaml file
 
 ## SelectableContentView
 
-![SelectableContentView](https://raw.githubusercontent.com/newky2k/DSoft.Maui.Controls/refs/heads/main/images/SelectableContentView.png)
-
 `SelectableContentView` is a `ContentView` with bindable properties for use inside a `CollectionView`, allowing background and text colour to update on selection.
 
 ## WizardView
@@ -278,8 +276,6 @@ public Color? Color { get; set; }
 ```
 
 ## PanPinchContainer (from Author)
-
-![PanPinchContainer](https://raw.githubusercontent.com/newky2k/DSoft.Maui.Controls/refs/heads/main/images/PanPinchContainer.png)
 
 I recently developed a MAUI app and needed a control that would allow the user to view an Image, like an Android/iOS photo album, I tried [Bertuzzi.MAUI.PinchZoomImage](https://github.com/TBertuzzi/Bertuzzi.MAUI.PinchZoomImage ), but it had some UX issues, then I tried reading the documentation [.NET MAUI Docs/Recognize a pangesture ](https://learn.microsoft.com/zh-cn/dotnet/maui/fundamentals/gestures/pan), [ .NET MAUI Docs/Recognize a pinch gesture](https://learn.microsoft.com/en-us/dotnet/maui/fundamentals/gestures/pinch ), After a few days of lots of attempts, I finally implemented the MauiPanPinchContainer!
 

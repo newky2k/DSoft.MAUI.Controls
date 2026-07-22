@@ -22,6 +22,8 @@
 		<SignAssembly>false</SignAssembly>
 		<GenerateDocumentationFile>false</GenerateDocumentationFile>
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+		<ValidateXcodeVersion>false</ValidateXcodeVersion>
+		
 		<!-- Display name -->
 		<ApplicationTitle>MauiSampleApp</ApplicationTitle>
 
