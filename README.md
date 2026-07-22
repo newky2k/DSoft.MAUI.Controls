@@ -135,6 +135,28 @@ You will need to add a namespace reference to your xaml file
     <VerticalStackLayout> 
 ```
 
+## ColorPickView
+
+![ColorPickView](https://raw.githubusercontent.com/newky2k/DSoft.Maui.Controls/refs/heads/main/images/ColorPicker.png)
+
+`ColorPickView` is a grid of selectable colour dots for quick palette-style colour selection.
+
+## GradientFrame
+
+![GradientFrame](https://raw.githubusercontent.com/newky2k/DSoft.Maui.Controls/refs/heads/main/images/GradientFrame.png)
+
+`GradientFrame` is a frame with a configurable gradient background.
+
+## SelectableContentView
+
+`SelectableContentView` is a `ContentView` with bindable properties for use inside a `CollectionView`, allowing background and text colour to update on selection.
+
+## WizardView
+
+![WizardView](https://raw.githubusercontent.com/newky2k/DSoft.Maui.Controls/refs/heads/main/images/WizardView.png)
+
+`WizardView` is a bindable wizard view for building multi-step wizard dialogs.
+
 ## SimpleRadialGaugeView
 
 ![SimpleRadialGuageView](https://raw.githubusercontent.com/newky2k/DSoft.Maui.Controls/refs/heads/main/images/SimpleRadialGuageView.png)
@@ -254,6 +276,7 @@ public Color? Color { get; set; }
 ```
 
 ## PanPinchContainer (from Author)
+
 I recently developed a MAUI app and needed a control that would allow the user to view an Image, like an Android/iOS photo album, I tried [Bertuzzi.MAUI.PinchZoomImage](https://github.com/TBertuzzi/Bertuzzi.MAUI.PinchZoomImage ), but it had some UX issues, then I tried reading the documentation [.NET MAUI Docs/Recognize a pangesture ](https://learn.microsoft.com/zh-cn/dotnet/maui/fundamentals/gestures/pan), [ .NET MAUI Docs/Recognize a pinch gesture](https://learn.microsoft.com/en-us/dotnet/maui/fundamentals/gestures/pinch ), After a few days of lots of attempts, I finally implemented the MauiPanPinchContainer!
 
 Honestly, the code is all mathematical calculations, and I don't fully understand it, so if I could, I'd like to see in the code `Contnet.Anchor` to stay at the default value of 0.5 (I'm not sure if 0.5 is better), but I'm limited in my ability/time to do that for now.
@@ -566,6 +589,8 @@ Grid positions with no matching cell are filled with `EmptyCellColor` (transpare
 
 # SignaturePadView
 
+![SignaturePadView](https://raw.githubusercontent.com/newky2k/DSoft.Maui.Controls/refs/heads/main/images/SignaturePadView.png)
+
 `SignaturePadView` is a SkiaSharp-based freehand signature capture control. Users draw with a finger or stylus; the result can be exported as a PNG or JPEG at any requested output size with a choice of background colour.
 
 ## Basic Usage
@@ -667,6 +692,8 @@ When `GetImageAsync` is called, a new off-screen `SKSurface` is created at the r
 
 # ColorWheelView
 
+![ColorWheelView](https://raw.githubusercontent.com/newky2k/DSoft.Maui.Controls/refs/heads/main/images/ColourWheel.png)
+
 `ColorWheelView` is a SkiaSharp-based interactive color wheel. The wheel renders a full HSL hue sweep with an optional white radial gradient overlay at the centre, allowing users to pick any hue at varying saturation levels. A circular indicator follows the touch point and reflects the selected color.
 
 ## Basic Usage
@@ -734,6 +761,8 @@ When `SelectedColor` is set programmatically the reverse mapping is applied: the
 ---
 
 # TabView
+
+![TabView](https://raw.githubusercontent.com/newky2k/DSoft.Maui.Controls/refs/heads/main/images/TabView.png)
 
 `TabView` is a tab container that uses the built-in `SegmentedControl` as its tab bar. Add `TabItem` children in XAML — the tab bar is built automatically from their titles and selecting a segment instantly shows the matching content view.
 
@@ -832,6 +861,8 @@ Set `IsTabBarVisible` to `false` to hide the segmented control entirely. The row
 ---
 
 # DataGridView
+
+![DataGridView](https://raw.githubusercontent.com/newky2k/DSoft.Maui.Controls/refs/heads/main/images/DataGridView.png)
 
 `DataGridView` is a pure-MAUI data grid backed by a `System.Data.DataTable`. It renders column headers, alternating row backgrounds, row selection, column sorting, and optional horizontal scrolling — all without any platform-specific code.
 
@@ -984,6 +1015,8 @@ When `HorizontalScrollEnabled` is `true`, the inner `_rootGrid` is placed inside
 ---
 
 # SpinnerPickerView
+
+![SpinnerPickerView](https://raw.githubusercontent.com/newky2k/DSoft.Maui.Controls/refs/heads/main/images/SpinnerPickerView.png)
 
 `SpinnerPickerView` is a drum-roll / wheel-style picker built entirely from MAUI primitives. Scroll vertically to spin through a list; the centred item snaps into the selection zone with a spring animation. Items above and below fade in opacity and scale down to give the classic iOS picker feel — with no native elements involved.
 
@@ -1162,6 +1195,8 @@ When `IsLooping` is `true`, the source items are repeated enough times to give t
 ---
 
 # DatePickerView
+
+![DatePickerView](https://raw.githubusercontent.com/newky2k/DSoft.Maui.Controls/refs/heads/main/images/DatePickerView.png)
 
 `DatePickerView` is an iOS-style calendar date/time picker built entirely from MAUI primitives. It supports three display modes (date only, time only, or both), month/year navigation, today highlight, minimum and maximum date constraints, optional date-range selection, and a `SpinnerPickerView`-based time picker for hours, minutes, and AM/PM.
 
