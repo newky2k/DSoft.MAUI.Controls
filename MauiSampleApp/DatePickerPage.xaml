@@ -60,6 +60,12 @@
                         <Switch x:Name="HourFormatSwitch" Grid.Column="1"
                                 Toggled="OnHourFormatToggled" />
                     </Grid>
+                    <BoxView HeightRequest="1" Color="LightGray" />
+                    <Grid ColumnDefinitions="*,Auto" HeightRequest="48">
+                        <Label Text="Show Today Button" VerticalOptions="Center" FontSize="15" />
+                        <Switch x:Name="TodayButtonSwitch" Grid.Column="1"
+                                Toggled="OnShowTodayButtonToggled" />
+                    </Grid>
                 </VerticalStackLayout>
             </Border>
 

@@ -35,6 +35,9 @@ public partial class DatePickerPage : ContentPage
     private void OnHourFormatToggled(object sender, ToggledEventArgs e)
         => Picker.Use24HourFormat = e.Value;
 
+    private void OnShowTodayButtonToggled(object sender, ToggledEventArgs e)
+        => Picker.ShowTodayButton = e.Value;
+
     private void OnDateSelected(object sender, DateSelectedEventArgs e)
         => ResultLabel.Text = $"Selected: {e.SelectedDate:d MMMM yyyy}";
 
