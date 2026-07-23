@@ -105,6 +105,13 @@
 
             await Navigation.PushModalAsync(new NavigationPage(dlg));
         }
+
+        private async void OnGradientBorderPageClicked(object sender, EventArgs e)
+        {
+            var dlg = new GradientBorderPage();
+
+            await Navigation.PushModalAsync(new NavigationPage(dlg));
+        }
     }
 
 }

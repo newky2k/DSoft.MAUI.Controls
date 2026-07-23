@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:mauic="http://dsoft.maui/schemas/controls"
+             x:Class="MauiSampleApp.GradientBorderPage"
+             Title="Gradient Border">
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Close" Clicked="OnCloseClicked" />
+    </ContentPage.ToolbarItems>
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="20" Padding="20">
+
+            <!-- Live preview, driven by the preset buttons below -->
+            <Label Text="Presets" FontSize="20" FontAttributes="Bold" HorizontalOptions="Center" />
+
+            <mauic:GradientBorder x:Name="PreviewBorder"
+                                   HeightRequest="120"
+                                   FromColor="#FF7E5F"
+                                   ToColor="#FEB47B"
+                                   StrokeThickness="0">
+                <mauic:GradientBorder.StrokeShape>
+                    <RoundRectangle CornerRadius="16" />
+                </mauic:GradientBorder.StrokeShape>
+                <Label Text="Hello Gradient"
+                       TextColor="White"
+                       FontAttributes="Bold"
+                       FontSize="20"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center" />
+            </mauic:GradientBorder>
+
+            <FlexLayout Wrap="Wrap" JustifyContent="Center">
+                <Button Text="Sunset" Margin="4" Clicked="OnSunsetClicked" />
+                <Button Text="Ocean" Margin="4" Clicked="OnOceanClicked" />
+                <Button Text="Forest" Margin="4" Clicked="OnForestClicked" />
+                <Button Text="Purple Rain" Margin="4" Clicked="OnPurpleClicked" />
+            </FlexLayout>
+
+            <!-- Static examples showing different StrokeShapes -->
+            <Label Text="Shapes" FontSize="20" FontAttributes="Bold" HorizontalOptions="Center" />
+
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                <mauic:GradientBorder Grid.Column="0"
+                                       HeightRequest="100"
+                                       FromColor="#00C6FB"
+                                       ToColor="#005BEA"
+                                       StrokeThickness="0">
+                    <mauic:GradientBorder.StrokeShape>
+                        <RoundRectangle CornerRadius="12" />
+                    </mauic:GradientBorder.StrokeShape>
+                </mauic:GradientBorder>
+
+                <mauic:GradientBorder Grid.Column="1"
+                                       WidthRequest="100"
+                                       HeightRequest="100"
+                                       FromColor="#F857A6"
+                                       ToColor="#FF5858"
+                                       StrokeThickness="0">
+                    <mauic:GradientBorder.StrokeShape>
+                        <Ellipse />
+                    </mauic:GradientBorder.StrokeShape>
+                </mauic:GradientBorder>
+            </Grid>
+
+            <!-- Example with a visible stroke on top of the gradient -->
+            <Label Text="With border stroke" FontSize="20" FontAttributes="Bold" HorizontalOptions="Center" />
+
+            <mauic:GradientBorder HeightRequest="80"
+                                   FromColor="#43C6AC"
+                                   ToColor="#191654"
+                                   Stroke="Black"
+                                   StrokeThickness="2">
+                <mauic:GradientBorder.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </mauic:GradientBorder.StrokeShape>
+            </mauic:GradientBorder>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
