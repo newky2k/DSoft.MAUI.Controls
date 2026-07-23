@@ -12,7 +12,8 @@ Features:
   - Grid of selectable color dots
 - `ColorWheelView`
   - Color selection wheel
-- `GradientFrame`
+- `GradientBorder`
+    - `Border` with a configurable linear gradient background
 - `SimpleRadialGaugeView`
   - Simple radial gauge chart with center view content
 - `SimpleDonutGaugeView`
@@ -38,7 +39,7 @@ Features:
 - `SpinnerPickerView`
     - Drum-roll / wheel-style picker — scroll vertically to select a value; surrounding items fade and scale to create the iOS spinner feel
 - `DatePickerView`
-    - iOS-style calendar date/time picker with month navigation, year selection, today highlight, min/max date enforcement, optional range selection, and a `SpinnerPickerView`-based time picker
+    - iOS-style calendar date/time picker with month navigation, a scrollable `SpinnerPickerView`-based month/year picker, an optional "Today" button, today highlight, min/max date enforcement, optional range selection, and a `SpinnerPickerView`-based time picker
 
 This packages also contains `PanPinchContainer` based on `PanPinchContainer` by [CodingOctocat](https://github.com/CodingOctocat/MauiPanPinchContainer)
 
@@ -141,11 +142,28 @@ You will need to add a namespace reference to your xaml file
 
 `ColorPickView` is a grid of selectable colour dots for quick palette-style colour selection.
 
-## GradientFrame
+## GradientBorder
 
-![GradientFrame](https://raw.githubusercontent.com/newky2k/DSoft.Maui.Controls/refs/heads/main/images/GradientFrame.png)
+![GradientBorder](https://raw.githubusercontent.com/newky2k/DSoft.Maui.Controls/refs/heads/main/images/GradientBorder.png)
 
-`GradientFrame` is a frame with a configurable gradient background.
+`GradientBorder` is a `Border` with a configurable linear gradient background, going from `FromColor` to `ToColor`. It replaces the deprecated `Frame`-based `GradientFrame`.
+
+```xaml
+  xmlns:mauic="http://dsoft.maui/schemas/controls"
+
+    <mauic:GradientBorder HeightRequest="120"
+                           FromColor="#FF7E5F"
+                           ToColor="#FEB47B"
+                           StrokeThickness="0">
+        <mauic:GradientBorder.StrokeShape>
+            <RoundRectangle CornerRadius="16" />
+        </mauic:GradientBorder.StrokeShape>
+        <Label Text="Hello Gradient"
+               TextColor="White"
+               HorizontalOptions="Center"
+               VerticalOptions="Center" />
+    </mauic:GradientBorder>
+```
 
 ## SelectableContentView
 
@@ -1198,7 +1216,7 @@ When `IsLooping` is `true`, the source items are repeated enough times to give t
 
 ![DatePickerView](https://raw.githubusercontent.com/newky2k/DSoft.Maui.Controls/refs/heads/main/images/DatePickerView.png)
 
-`DatePickerView` is an iOS-style calendar date/time picker built entirely from MAUI primitives. It supports three display modes (date only, time only, or both), month/year navigation, today highlight, minimum and maximum date constraints, optional date-range selection, and a `SpinnerPickerView`-based time picker for hours, minutes, and AM/PM.
+`DatePickerView` is an iOS-style calendar date/time picker built entirely from MAUI primitives. It supports three display modes (date only, time only, or both), month navigation with a scrollable `SpinnerPickerView`-based month/year picker, an optional "Today" button, today highlight, minimum and maximum date constraints, optional date-range selection, and a `SpinnerPickerView`-based time picker for hours, minutes, and AM/PM.
 
 ## Basic Usage
 
@@ -1264,9 +1282,17 @@ private void OnDateRangeSelected(object sender, DateRangeSelectedEventArgs e)
 }
 ```
 
-## Year Picker
+## Month / Year Picker
 
-Tapping the month/year label in the calendar header switches to a year grid (4 columns, 20 years per page). Tap a year to jump straight to it; use the prev/next arrows to page through decades. Tap the label again to return to the calendar.
+Tapping the month/year label in the calendar header switches to two scrollable `SpinnerPickerView` wheels — month and year — so the user can dial in a date far from the current view without paging month-by-month. The year wheel's range comes from `MinimumDate`/`MaximumDate` when set, otherwise it defaults to 100 years back and 50 years forward from today (widened if needed to include the currently displayed year). Tap the label again to return to the calendar, which then shows the day grid for whichever month/year was scrolled to.
+
+## Today Button
+
+Set `ShowTodayButton="True"` to show a "Today" button in the calendar header that jumps back to the current date (respecting `MinimumDate`/`MaximumDate`). When enabled, the button takes the prev-month button's spot on the left, and the prev/next month buttons move together on the right so they stay paired.
+
+```xaml
+<controls:DatePickerView ShowTodayButton="True" />
+```
 
 ## Time Picker
 
@@ -1329,6 +1355,7 @@ Wrap the control in a `Border` for a card appearance:
 | `SelectedStartDate` | `DateTime?` | `null` | Start of the selected range. Two-way bindable. |
 | `SelectedEndDate` | `DateTime?` | `null` | End of the selected range. Two-way bindable. |
 | `Use24HourFormat` | `bool` | `false` | When `true`, the time picker shows 0–23 hours and hides the AM/PM spinner. |
+| `ShowTodayButton` | `bool` | `false` | When `true`, shows a "Today" button in the header that jumps back to today's date; the prev/next month buttons move together on the right to make room. |
 
 ### Colours
 
@@ -1358,8 +1385,10 @@ Wrap the control in a `Border` for a card appearance:
 
 `DatePickerView` is a `ContentView` whose content is a `VerticalStackLayout` of two sections — the calendar section and the time section — each shown or hidden based on `Mode`.
 
-The calendar section is a three-row `Grid`: a header row with prev/next buttons and a tappable month/year label, a fixed day-names row, and a container that holds both the day-cell grid and the year-picker grid (only one is visible at a time). The day-cell grid is a 7-column `Grid` rebuilt on each navigation or selection change; each cell is a `Grid` containing a `Border` (for selected/today states) or a plain `Label` (for all other states). Today is indicated by a 2 px stroke `Ellipse` border; selected dates and range endpoints use a filled `Ellipse`. Dates between the range start and end use `RangeHighlightColor` as their container background to produce a continuous band.
+The calendar section is a three-row `Grid`: a header row with prev/next buttons (plus an optional Today button) and a tappable month/year label, a fixed day-names row, and a container that holds both the day-cell grid and the month/year picker grid (only one is visible at a time). The day-cell grid is a 7-column `Grid` rebuilt on month navigation; each cell is a `Grid` containing a `Border` (for selected/today states) or a plain `Label` (for all other states). Today is indicated by a 2 px stroke `Ellipse` border; selected dates and range endpoints use a filled `Ellipse`. Dates between the range start and end use `RangeHighlightColor` as their container background to produce a continuous band. A `_dayCellViews` cache keyed by date lets a plain day-tap patch just the previously- and newly-selected cells in place instead of rebuilding the whole grid; a full rebuild only happens when the tap actually changes the displayed month.
 
-The year-picker grid replaces the day-cell grid when the header label is tapped. It shows 20 years in a 4-column layout with its own prev/next paging. Tapping a year updates `_displayedMonth`, hides the year grid, and rebuilds the calendar.
+The month/year picker replaces the day-cell grid (and hides the day-names row and prev/next buttons) when the header label is tapped. It's two `SpinnerPickerView` columns — month names and a year range — built once per open via `OpenMonthYearPicker()`; scrolling either wheel updates `_displayedMonth` and the header label live without touching the spinners' `ItemsSource`. Tapping the label again closes the picker and rebuilds the calendar for the scrolled-to month/year.
 
-The time section is a four-column `Grid` of `SpinnerPickerView` controls (hours, a colon label, minutes, AM/PM). When `Use24HourFormat` changes, the hours list is rebuilt (0–23) and the AM/PM spinner is hidden. `_suppressTimeCallbacks` prevents re-entrancy when `SelectedDate` is set externally and the spinners are repositioned programmatically.
+The header itself is rebuilt by `LayoutCalendarHeader()` whenever `ShowTodayButton` changes: 3 columns (`‹ | label | ›`) when `false`, or 4 columns (`Today | label | ‹ | ›`) when `true`, reusing the same button instances so their event handlers don't need to be rewired.
+
+The time section is a four-column `Grid` of `SpinnerPickerView` controls (hours, a colon label, minutes, AM/PM). When `Use24HourFormat` changes, `PopulateTimePickers()` rebuilds the hours list (0–23) and hides the AM/PM spinner. When only `SelectedDate` changes, `UpdateTimeSelection()` is used instead — it just repositions `SelectedIndex` on the existing spinners rather than reassigning `ItemsSource`, avoiding a full rebuild of every spinner row on each date tap. `_suppressTimeCallbacks` prevents re-entrancy in both paths when the spinners are repositioned programmatically.

@@ -12,17 +12,25 @@ public class DatePickerView : ContentView
     #region Fields
 
     private Grid? _calendarGrid;
+    private Grid? _dayNamesRow;
+    private readonly Dictionary<DateTime, View> _dayCellViews = new();
     private Label? _monthYearLabel;
-    private Grid? _yearPickerGrid;
+    private Grid? _monthYearPickerGrid;
+    private SpinnerPickerView? _monthSpinner;
+    private SpinnerPickerView? _yearSpinner;
+    private Grid? _headerGrid;
+    private Button? _prevMonthButton;
+    private Button? _nextMonthButton;
+    private Button? _todayButton;
     private Grid? _calendarSection;
     private Grid? _timeSection;
     private SpinnerPickerView? _hourPicker;
     private SpinnerPickerView? _minutePicker;
     private SpinnerPickerView? _amPmPicker;
     private DateTime _displayedMonth;
-    private bool _showingYearPicker;
-    private int _yearPageStart;
+    private bool _showingMonthYearPicker;
     private bool _suppressTimeCallbacks;
+    private bool _suppressMonthYearCallbacks;
 
     private static readonly Color DefaultTodayColor = Color.FromArgb("#007AFF");
     private static readonly Color DefaultSelectedColor = Color.FromArgb("#007AFF");
@@ -115,6 +123,21 @@ public class DatePickerView : ContentView
     {
         get => (bool)GetValue(Use24HourFormatProperty);
         set => SetValue(Use24HourFormatProperty, value);
+    }
+
+    public static readonly BindableProperty ShowTodayButtonProperty = BindableProperty.Create(
+        nameof(ShowTodayButton), typeof(bool), typeof(DatePickerView),
+        false, propertyChanged: OnShowTodayButtonChanged);
+
+    /// <summary>
+    /// When true, shows a "Today" button in the top-left of the header that
+    /// jumps back to today's date. The month prev/next buttons move together
+    /// on the right to make room.
+    /// </summary>
+    public bool ShowTodayButton
+    {
+        get => (bool)GetValue(ShowTodayButtonProperty);
+        set => SetValue(ShowTodayButtonProperty, value);
     }
 
     // --- Appearance ---
@@ -283,18 +306,18 @@ public class DatePickerView : ContentView
         section.Add(header);
 
         // Day names row
-        var dayNames = BuildDayNamesRow();
-        Grid.SetRow(dayNames, 1);
-        section.Add(dayNames);
+        _dayNamesRow = BuildDayNamesRow();
+        Grid.SetRow(_dayNamesRow, 1);
+        section.Add(_dayNamesRow);
 
         // Calendar grid placeholder
         _calendarGrid = new Grid();
-        _yearPickerGrid = new Grid();
-        _yearPickerGrid.IsVisible = false;
+        _monthYearPickerGrid = BuildMonthYearPickerGrid();
+        _monthYearPickerGrid.IsVisible = false;
 
         var calendarContainer = new Grid();
         calendarContainer.Add(_calendarGrid);
-        calendarContainer.Add(_yearPickerGrid);
+        calendarContainer.Add(_monthYearPickerGrid);
         Grid.SetRow(calendarContainer, 2);
         section.Add(calendarContainer);
 
@@ -304,41 +327,27 @@ public class DatePickerView : ContentView
 
     private Grid BuildCalendarHeader()
     {
-        var header = new Grid
+        _headerGrid = new Grid
         {
             BackgroundColor = HeaderBackgroundColor,
             Padding = new Thickness(8, 8, 8, 4),
-            ColumnDefinitions =
-            {
-                new ColumnDefinition { Width = GridLength.Auto }, // prev
-                new ColumnDefinition { Width = GridLength.Star }, // month/year label
-                new ColumnDefinition { Width = GridLength.Auto }, // next
-            }
         };
 
-        var prevButton = new Button
-        {
-            Text = "‹",
-            FontSize = 22,
-            BackgroundColor = Colors.Transparent,
-            TextColor = SelectionColor,
-            WidthRequest = 44,
-            HeightRequest = 44,
-            Padding = 0,
-        };
-        prevButton.Clicked += OnPrevMonthClicked;
+        _prevMonthButton = CreateNavButton("‹");
+        _prevMonthButton.Clicked += OnPrevMonthClicked;
 
-        var nextButton = new Button
+        _nextMonthButton = CreateNavButton("›");
+        _nextMonthButton.Clicked += OnNextMonthClicked;
+
+        _todayButton = new Button
         {
-            Text = "›",
-            FontSize = 22,
+            Text = "Today",
+            FontSize = 14,
             BackgroundColor = Colors.Transparent,
             TextColor = SelectionColor,
-            WidthRequest = 44,
-            HeightRequest = 44,
-            Padding = 0,
+            Padding = new Thickness(4, 0),
         };
-        nextButton.Clicked += OnNextMonthClicked;
+        _todayButton.Clicked += OnTodayClicked;
 
         _monthYearLabel = new Label
         {
@@ -354,15 +363,63 @@ public class DatePickerView : ContentView
         labelTap.Tapped += OnMonthYearLabelTapped;
         _monthYearLabel.GestureRecognizers.Add(labelTap);
 
-        Grid.SetColumn(prevButton, 0);
-        Grid.SetColumn(_monthYearLabel, 1);
-        Grid.SetColumn(nextButton, 2);
+        LayoutCalendarHeader();
 
-        header.Add(prevButton);
-        header.Add(_monthYearLabel);
-        header.Add(nextButton);
+        return _headerGrid;
+    }
 
-        return header;
+    private Button CreateNavButton(string text) => new Button
+    {
+        Text = text,
+        FontSize = 22,
+        BackgroundColor = Colors.Transparent,
+        TextColor = SelectionColor,
+        WidthRequest = 44,
+        HeightRequest = 44,
+        Padding = 0,
+    };
+
+    private void LayoutCalendarHeader()
+    {
+        if (_headerGrid == null || _prevMonthButton == null || _nextMonthButton == null
+            || _todayButton == null || _monthYearLabel == null) return;
+
+        _headerGrid.Children.Clear();
+        _headerGrid.ColumnDefinitions.Clear();
+
+        if (ShowTodayButton)
+        {
+            // Today | label | ‹ | ›
+            _headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            _headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
+            _headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            _headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            Grid.SetColumn(_todayButton, 0);
+            Grid.SetColumn(_monthYearLabel, 1);
+            Grid.SetColumn(_prevMonthButton, 2);
+            Grid.SetColumn(_nextMonthButton, 3);
+
+            _headerGrid.Add(_todayButton);
+            _headerGrid.Add(_monthYearLabel);
+            _headerGrid.Add(_prevMonthButton);
+            _headerGrid.Add(_nextMonthButton);
+        }
+        else
+        {
+            // ‹ | label | ›
+            _headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            _headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
+            _headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            Grid.SetColumn(_prevMonthButton, 0);
+            Grid.SetColumn(_monthYearLabel, 1);
+            Grid.SetColumn(_nextMonthButton, 2);
+
+            _headerGrid.Add(_prevMonthButton);
+            _headerGrid.Add(_monthYearLabel);
+            _headerGrid.Add(_nextMonthButton);
+        }
     }
 
     private Grid BuildDayNamesRow()
@@ -403,6 +460,7 @@ public class DatePickerView : ContentView
         _calendarGrid.Children.Clear();
         _calendarGrid.RowDefinitions.Clear();
         _calendarGrid.ColumnDefinitions.Clear();
+        _dayCellViews.Clear();
 
         for (var i = 0; i < 7; i++)
             _calendarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
@@ -448,7 +506,31 @@ public class DatePickerView : ContentView
             Grid.SetRow(dayView, row);
             Grid.SetColumn(dayView, col);
             _calendarGrid.Add(dayView);
+            _dayCellViews[date.Value] = dayView;
         }
+    }
+
+    /// <summary>
+    /// Rebuilds a single day cell in place, e.g. after a selection change that
+    /// doesn't require repainting the whole visible month.
+    /// </summary>
+    private void RefreshDayCell(DateTime date)
+    {
+        date = date.Date;
+        if (_calendarGrid == null) return;
+        if (!_dayCellViews.TryGetValue(date, out var oldView)) return;
+
+        var isCurrentMonth = date.Year == _displayedMonth.Year && date.Month == _displayedMonth.Month;
+        var row = Grid.GetRow(oldView);
+        var col = Grid.GetColumn(oldView);
+
+        var newView = CreateDayCell(date, isCurrentMonth);
+        Grid.SetRow(newView, row);
+        Grid.SetColumn(newView, col);
+
+        _calendarGrid.Children.Remove(oldView);
+        _calendarGrid.Children.Add(newView);
+        _dayCellViews[date] = newView;
     }
 
     private View CreateDayCell(DateTime date, bool isCurrentMonth)
@@ -676,128 +758,111 @@ public class DatePickerView : ContentView
         _suppressTimeCallbacks = false;
     }
 
-    private void PopulateYearPicker()
+    private void UpdateTimeSelection()
     {
-        if (_yearPickerGrid == null) return;
+        if (_hourPicker == null || _minutePicker == null || _amPmPicker == null) return;
 
-        _yearPickerGrid.Children.Clear();
-        _yearPickerGrid.RowDefinitions.Clear();
-        _yearPickerGrid.ColumnDefinitions.Clear();
+        _suppressTimeCallbacks = true;
 
-        const int cols = 4;
-        const int yearsPerPage = 20;
-        _yearPageStart = _displayedMonth.Year - (_displayedMonth.Year % yearsPerPage);
-
-        for (var c = 0; c < cols; c++)
-            _yearPickerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
-
-        var rows = (int)Math.Ceiling(yearsPerPage / (double)cols);
-        for (var r = 0; r < rows + 1; r++) // +1 for nav row
-            _yearPickerGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(44) });
-
-        // Navigation row
-        var navGrid = new Grid
+        if (Use24HourFormat)
         {
+            _hourPicker.SelectedIndex = SelectedDate.Hour;
+        }
+        else
+        {
+            var hour12 = SelectedDate.Hour % 12;
+            if (hour12 == 0) hour12 = 12;
+            _hourPicker.SelectedIndex = hour12 - 1;
+            _amPmPicker.SelectedIndex = SelectedDate.Hour >= 12 ? 1 : 0;
+        }
+
+        _minutePicker.SelectedIndex = SelectedDate.Minute;
+
+        _suppressTimeCallbacks = false;
+    }
+
+    private Grid BuildMonthYearPickerGrid()
+    {
+        var grid = new Grid
+        {
+            Padding = new Thickness(16, 8, 16, 8),
             ColumnDefinitions =
             {
-                new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Star },
-                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Star },
             }
         };
 
-        var prevYears = new Button
+        _monthSpinner = new SpinnerPickerView
         {
-            Text = "‹",
-            FontSize = 22,
-            BackgroundColor = Colors.Transparent,
-            TextColor = SelectionColor,
-            WidthRequest = 44,
-            HeightRequest = 44,
-            Padding = 0,
+            VisibleItemCount = 5,
+            ItemHeight = 44,
+            IsLooping = false,
+            TextColor = SpinnerTextColor,
+            SelectedTextColor = SpinnerSelectedTextColor,
+            SelectorColor = SpinnerSelectorColor,
         };
-        prevYears.Clicked += (s, e) =>
+        _monthSpinner.SelectionChanged += OnMonthSpinnerChanged;
+
+        _yearSpinner = new SpinnerPickerView
         {
-            _yearPageStart -= yearsPerPage;
-            PopulateYearPicker();
+            VisibleItemCount = 5,
+            ItemHeight = 44,
+            IsLooping = false,
+            TextColor = SpinnerTextColor,
+            SelectedTextColor = SpinnerSelectedTextColor,
+            SelectorColor = SpinnerSelectorColor,
         };
+        _yearSpinner.SelectionChanged += OnYearSpinnerChanged;
 
-        var nextYears = new Button
-        {
-            Text = "›",
-            FontSize = 22,
-            BackgroundColor = Colors.Transparent,
-            TextColor = SelectionColor,
-            WidthRequest = 44,
-            HeightRequest = 44,
-            Padding = 0,
-        };
-        nextYears.Clicked += (s, e) =>
-        {
-            _yearPageStart += yearsPerPage;
-            PopulateYearPicker();
-        };
+        Grid.SetColumn(_monthSpinner, 0);
+        Grid.SetColumn(_yearSpinner, 1);
+        grid.Add(_monthSpinner);
+        grid.Add(_yearSpinner);
 
-        var rangeLabel = new Label
-        {
-            Text = $"{_yearPageStart} – {_yearPageStart + yearsPerPage - 1}",
-            FontSize = 16,
-            FontAttributes = FontAttributes.Bold,
-            HorizontalOptions = LayoutOptions.Center,
-            VerticalOptions = LayoutOptions.Center,
-            TextColor = DayColor,
-        };
+        return grid;
+    }
 
-        Grid.SetColumn(prevYears, 0);
-        Grid.SetColumn(rangeLabel, 1);
-        Grid.SetColumn(nextYears, 2);
-        navGrid.Add(prevYears);
-        navGrid.Add(rangeLabel);
-        navGrid.Add(nextYears);
+    private void OpenMonthYearPicker()
+    {
+        if (_monthSpinner == null || _yearSpinner == null) return;
 
-        Grid.SetColumnSpan(navGrid, cols);
-        Grid.SetRow(navGrid, 0);
-        _yearPickerGrid.Add(navGrid);
+        _suppressMonthYearCallbacks = true;
 
-        for (var i = 0; i < yearsPerPage; i++)
-        {
-            var year = _yearPageStart + i;
-            var row = i / cols + 1;
-            var col = i % cols;
+        _monthSpinner.ItemsSource = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.MonthNames
+            .Where(m => !string.IsNullOrEmpty(m))
+            .ToList();
+        _monthSpinner.SelectedIndex = _displayedMonth.Month - 1;
 
-            var isCurrentYear = year == _displayedMonth.Year;
-            var isDisabled = (MinimumDate.HasValue && year < MinimumDate.Value.Year)
-                          || (MaximumDate.HasValue && year > MaximumDate.Value.Year);
+        var minYear = MinimumDate?.Year ?? Math.Min(DateTime.Today.Year - 100, _displayedMonth.Year);
+        var maxYear = MaximumDate?.Year ?? Math.Max(DateTime.Today.Year + 50, _displayedMonth.Year);
+        var years = Enumerable.Range(minYear, maxYear - minYear + 1).ToList();
+        _yearSpinner.ItemsSource = years;
+        _yearSpinner.SelectedIndex = years.IndexOf(_displayedMonth.Year);
 
-            var yearBtn = new Border
-            {
-                BackgroundColor = isCurrentYear ? SelectionColor : Colors.Transparent,
-                StrokeThickness = 0,
-                StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 },
-                Margin = new Thickness(2),
-                Content = new Label
-                {
-                    Text = year.ToString(),
-                    HorizontalTextAlignment = TextAlignment.Center,
-                    VerticalTextAlignment = TextAlignment.Center,
-                    TextColor = isCurrentYear ? Colors.White : (isDisabled ? DisabledDayColor : DayColor),
-                    FontSize = 15,
-                    FontAttributes = isCurrentYear ? FontAttributes.Bold : FontAttributes.None,
-                }
-            };
+        _suppressMonthYearCallbacks = false;
+    }
 
-            if (!isDisabled)
-            {
-                var capturedYear = year;
-                var tap = new TapGestureRecognizer();
-                tap.Tapped += (s, e) => OnYearSelected(capturedYear);
-                yearBtn.GestureRecognizers.Add(tap);
-            }
+    private void OnMonthSpinnerChanged(object? sender, Events.SpinnerSelectedEventArgs e)
+    {
+        if (_suppressMonthYearCallbacks) return;
+        UpdateDisplayedMonthFromSpinners();
+    }
 
-            Grid.SetRow(yearBtn, row);
-            Grid.SetColumn(yearBtn, col);
-            _yearPickerGrid.Add(yearBtn);
-        }
+    private void OnYearSpinnerChanged(object? sender, Events.SpinnerSelectedEventArgs e)
+    {
+        if (_suppressMonthYearCallbacks) return;
+        UpdateDisplayedMonthFromSpinners();
+    }
+
+    private void UpdateDisplayedMonthFromSpinners()
+    {
+        if (_monthSpinner == null || _yearSpinner == null) return;
+        if (_yearSpinner.SelectedItem is not int year) return;
+
+        var month = _monthSpinner.SelectedIndex + 1;
+        _displayedMonth = new DateTime(year, month, 1);
+        UpdateMonthYearLabel();
     }
 
     private void ApplyModeVisibility()
@@ -814,13 +879,6 @@ public class DatePickerView : ContentView
 
     private void OnPrevMonthClicked(object? sender, EventArgs e)
     {
-        if (_showingYearPicker)
-        {
-            _yearPageStart -= 20;
-            PopulateYearPicker();
-            return;
-        }
-
         var newMonth = _displayedMonth.AddMonths(-1);
         if (MinimumDate.HasValue && newMonth < new DateTime(MinimumDate.Value.Year, MinimumDate.Value.Month, 1))
             return;
@@ -831,13 +889,6 @@ public class DatePickerView : ContentView
 
     private void OnNextMonthClicked(object? sender, EventArgs e)
     {
-        if (_showingYearPicker)
-        {
-            _yearPageStart += 20;
-            PopulateYearPicker();
-            return;
-        }
-
         var newMonth = _displayedMonth.AddMonths(1);
         if (MaximumDate.HasValue && newMonth > new DateTime(MaximumDate.Value.Year, MaximumDate.Value.Month, 1))
             return;
@@ -848,30 +899,51 @@ public class DatePickerView : ContentView
 
     private void OnMonthYearLabelTapped(object? sender, TappedEventArgs e)
     {
-        _showingYearPicker = !_showingYearPicker;
+        _showingMonthYearPicker = !_showingMonthYearPicker;
 
-        if (_calendarGrid != null) _calendarGrid.IsVisible = !_showingYearPicker;
-        if (_yearPickerGrid != null) _yearPickerGrid.IsVisible = _showingYearPicker;
+        if (_calendarGrid != null) _calendarGrid.IsVisible = !_showingMonthYearPicker;
+        if (_dayNamesRow != null) _dayNamesRow.IsVisible = !_showingMonthYearPicker;
+        if (_monthYearPickerGrid != null) _monthYearPickerGrid.IsVisible = _showingMonthYearPicker;
+        if (_prevMonthButton != null) _prevMonthButton.IsVisible = !_showingMonthYearPicker;
+        if (_nextMonthButton != null) _nextMonthButton.IsVisible = !_showingMonthYearPicker;
+        if (_todayButton != null) _todayButton.IsVisible = !_showingMonthYearPicker;
 
-        if (_showingYearPicker)
+        if (_showingMonthYearPicker)
         {
-            _yearPageStart = _displayedMonth.Year - (_displayedMonth.Year % 20);
-            PopulateYearPicker();
+            OpenMonthYearPicker();
+        }
+        else
+        {
+            PopulateCalendarGrid();
         }
 
         UpdateMonthYearLabel();
     }
 
-    private void OnYearSelected(int year)
+    private void OnTodayClicked(object? sender, EventArgs e)
     {
-        _displayedMonth = new DateTime(year, _displayedMonth.Month, 1);
-        _showingYearPicker = false;
+        var today = DateTime.Today;
+        if (MinimumDate.HasValue && today < MinimumDate.Value.Date) return;
+        if (MaximumDate.HasValue && today > MaximumDate.Value.Date) return;
 
-        if (_calendarGrid != null) _calendarGrid.IsVisible = true;
-        if (_yearPickerGrid != null) _yearPickerGrid.IsVisible = false;
+        var previous = SelectedDate;
+        var newDate = new DateTime(today.Year, today.Month, today.Day,
+            SelectedDate.Hour, SelectedDate.Minute, SelectedDate.Second);
+        SelectedDate = newDate;
 
-        UpdateMonthYearLabel();
-        PopulateCalendarGrid();
+        if (_showingMonthYearPicker)
+        {
+            _showingMonthYearPicker = false;
+            if (_calendarGrid != null) _calendarGrid.IsVisible = true;
+            if (_dayNamesRow != null) _dayNamesRow.IsVisible = true;
+            if (_monthYearPickerGrid != null) _monthYearPickerGrid.IsVisible = false;
+            if (_prevMonthButton != null) _prevMonthButton.IsVisible = true;
+            if (_nextMonthButton != null) _nextMonthButton.IsVisible = true;
+            if (_todayButton != null) _todayButton.IsVisible = true;
+            UpdateMonthYearLabel();
+        }
+
+        DateSelected?.Invoke(this, new DateSelectedEventArgs(newDate, previous));
     }
 
     private void OnDayTapped(DateTime date)
@@ -896,7 +968,6 @@ public class DatePickerView : ContentView
             var newDate = new DateTime(date.Year, date.Month, date.Day,
                 SelectedDate.Hour, SelectedDate.Minute, SelectedDate.Second);
             SelectedDate = newDate;
-            PopulateCalendarGrid();
             DateSelected?.Invoke(this, new DateSelectedEventArgs(newDate, previous));
         }
     }
@@ -923,8 +994,6 @@ public class DatePickerView : ContentView
             }
             DateRangeSelected?.Invoke(this, new DateRangeSelectedEventArgs(SelectedStartDate, SelectedEndDate));
         }
-
-        PopulateCalendarGrid();
     }
 
     private void OnHourChanged(object? sender, Events.SpinnerSelectedEventArgs e)
@@ -976,8 +1045,8 @@ public class DatePickerView : ContentView
     private void UpdateMonthYearLabel()
     {
         if (_monthYearLabel == null) return;
-        _monthYearLabel.Text = _showingYearPicker
-            ? $"{_yearPageStart} – {_yearPageStart + 19} ▲"
+        _monthYearLabel.Text = _showingMonthYearPicker
+            ? $"{_displayedMonth:MMMM yyyy} ▲"
             : $"{_displayedMonth:MMMM yyyy} ▼";
     }
 
@@ -995,12 +1064,26 @@ public class DatePickerView : ContentView
     {
         var control = (DatePickerView)bindable;
         var date = (DateTime)newValue;
+        var oldDate = (DateTime)oldValue;
+
+        var sameMonth = control._displayedMonth.Year == date.Year && control._displayedMonth.Month == date.Month;
 
         // Navigate calendar to the new date's month
         control._displayedMonth = new DateTime(date.Year, date.Month, 1);
         control.UpdateMonthYearLabel();
-        control.PopulateCalendarGrid();
-        control.PopulateTimePickers();
+
+        if (sameMonth)
+        {
+            // Only the previously and newly selected cells actually look different.
+            control.RefreshDayCell(oldDate.Date);
+            control.RefreshDayCell(date.Date);
+        }
+        else
+        {
+            control.PopulateCalendarGrid();
+        }
+
+        control.UpdateTimeSelection();
     }
 
     private static void OnCalendarRebuildRequired(BindableObject bindable, object oldValue, object newValue)
@@ -1008,6 +1091,9 @@ public class DatePickerView : ContentView
 
     private static void OnTimeRebuildRequired(BindableObject bindable, object oldValue, object newValue)
         => ((DatePickerView)bindable).PopulateTimePickers();
+
+    private static void OnShowTodayButtonChanged(BindableObject bindable, object oldValue, object newValue)
+        => ((DatePickerView)bindable).LayoutCalendarHeader();
 
     private static void OnTimeStyleChanged(BindableObject bindable, object oldValue, object newValue)
     {
@@ -1029,6 +1115,18 @@ public class DatePickerView : ContentView
             control._amPmPicker.TextColor = control.SpinnerTextColor;
             control._amPmPicker.SelectedTextColor = control.SpinnerSelectedTextColor;
             control._amPmPicker.SelectorColor = control.SpinnerSelectorColor;
+        }
+        if (control._monthSpinner != null)
+        {
+            control._monthSpinner.TextColor = control.SpinnerTextColor;
+            control._monthSpinner.SelectedTextColor = control.SpinnerSelectedTextColor;
+            control._monthSpinner.SelectorColor = control.SpinnerSelectorColor;
+        }
+        if (control._yearSpinner != null)
+        {
+            control._yearSpinner.TextColor = control.SpinnerTextColor;
+            control._yearSpinner.SelectedTextColor = control.SpinnerSelectedTextColor;
+            control._yearSpinner.SelectorColor = control.SpinnerSelectorColor;
         }
     }
 
