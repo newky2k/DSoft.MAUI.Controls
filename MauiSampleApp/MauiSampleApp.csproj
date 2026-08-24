@@ -62,10 +62,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="DSoft.System.Mvvm" Version="3.5.2511.161" />
+		<PackageReference Include="DSoft.System.Mvvm" Version="3.6.2606.131" />
 		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.51" />
 		<PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="10.0.51" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.5" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.11" />
 	</ItemGroup>
 
 	<ItemGroup>

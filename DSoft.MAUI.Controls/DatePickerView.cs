@@ -16,6 +16,7 @@ public class DatePickerView : ContentView
     private readonly Dictionary<DateTime, View> _dayCellViews = new();
     private Label? _monthYearLabel;
     private Grid? _monthYearPickerGrid;
+    private Border? _monthYearPickerCard;
     private SpinnerPickerView? _monthSpinner;
     private SpinnerPickerView? _yearSpinner;
     private Grid? _headerGrid;
@@ -40,6 +41,30 @@ public class DatePickerView : ContentView
     private static readonly Color DefaultDayColor = Colors.Black;
     private static readonly Color DefaultDisabledColor = Colors.LightGray;
     private static readonly Color DefaultOtherMonthColor = Colors.LightGray;
+
+    // A month grid is always rendered with a full 6 weeks (padded with adjacent-month
+    // overflow days) so the calendar area has a constant height. That lets the
+    // month/year picker occupy the same fixed-size slot without ever resizing
+    // the section — swapping between calendar and picker no longer reflows the
+    // rest of the control.
+    private const int CalendarVisibleRows = 6;
+    private const double CalendarRowHeight = 44;
+    private const double CalendarAreaHeight = CalendarRowHeight * CalendarVisibleRows;
+
+    // Nav button HeightRequest (44) + header Padding top/bottom (8+4). Fixed at
+    // the RowDefinition level so hiding the prev/next/today buttons — via opacity,
+    // not IsVisible, see SetNavButtonsReserved — can never change this row's height.
+    private const double HeaderAreaHeight = 44 + 8 + 4;
+
+    // Day-name label HeightRequest (28) + row Padding bottom (4). Also fixed —
+    // this row is hidden outright (IsVisible=false) while the month/year card is
+    // open, and an Auto row collapses to 0 when its only child goes invisible.
+    private const double DayNamesAreaHeight = 28 + 4;
+
+    private List<string>? _cachedMonthNames;
+    private List<int>? _cachedYears;
+    private int _cachedYearsMin = int.MinValue;
+    private int _cachedYearsMax = int.MinValue;
 
     #endregion
 
@@ -294,9 +319,9 @@ public class DatePickerView : ContentView
         {
             RowDefinitions =
             {
-                new RowDefinition { Height = GridLength.Auto }, // header
-                new RowDefinition { Height = GridLength.Auto }, // day names
-                new RowDefinition { Height = GridLength.Auto }, // calendar or year grid
+                new RowDefinition { Height = new GridLength(HeaderAreaHeight) }, // header
+                new RowDefinition { Height = new GridLength(DayNamesAreaHeight) }, // day names
+                new RowDefinition { Height = new GridLength(CalendarAreaHeight) }, // calendar / month-year card
             }
         };
 
@@ -310,14 +335,26 @@ public class DatePickerView : ContentView
         Grid.SetRow(_dayNamesRow, 1);
         section.Add(_dayNamesRow);
 
-        // Calendar grid placeholder
-        _calendarGrid = new Grid();
-        _monthYearPickerGrid = BuildMonthYearPickerGrid();
-        _monthYearPickerGrid.IsVisible = false;
+        // Fixed height so toggling between the calendar grid and the month/year
+        // picker never changes this section's measured size (see CalendarAreaHeight).
+        var calendarContainer = new Grid { HeightRequest = CalendarAreaHeight };
 
-        var calendarContainer = new Grid();
+        _calendarGrid = new Grid();
         calendarContainer.Add(_calendarGrid);
-        calendarContainer.Add(_monthYearPickerGrid);
+
+        _monthYearPickerGrid = BuildMonthYearPickerGrid();
+        _monthYearPickerCard = new Border
+        {
+            Content = _monthYearPickerGrid,
+            BackgroundColor = Colors.White,
+            Stroke = Colors.LightGray,
+            StrokeThickness = 1,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 12 },
+            Shadow = new Shadow { Brush = Colors.Black, Opacity = 0.25f, Radius = 16, Offset = new Point(0, 6) },
+            IsVisible = false,
+        };
+        calendarContainer.Add(_monthYearPickerCard);
+
         Grid.SetRow(calendarContainer, 2);
         section.Add(calendarContainer);
 
@@ -468,13 +505,15 @@ public class DatePickerView : ContentView
         var firstDay = _displayedMonth;
         var daysInMonth = DateTime.DaysInMonth(firstDay.Year, firstDay.Month);
         var startDayOfWeek = (int)firstDay.DayOfWeek; // 0=Sun
-        var totalCells = startDayOfWeek + daysInMonth;
-        var rowCount = (int)Math.Ceiling(totalCells / 7.0);
+
+        // Always render a full 6 weeks (padded with adjacent-month overflow days)
+        // so the grid's height is constant across months — see CalendarAreaHeight.
+        var rowCount = CalendarVisibleRows;
 
         for (var r = 0; r < rowCount; r++)
-            _calendarGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(44) });
+            _calendarGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(CalendarRowHeight) });
 
-        _calendarGrid.Padding = new Thickness(4, 0, 4, 4);
+        _calendarGrid.Padding = new Thickness(4, 0, 4, 0);
 
         for (var cell = 0; cell < rowCount * 7; cell++)
         {
@@ -785,7 +824,7 @@ public class DatePickerView : ContentView
     {
         var grid = new Grid
         {
-            Padding = new Thickness(16, 8, 16, 8),
+            Padding = new Thickness(16, 0),
             ColumnDefinitions =
             {
                 new ColumnDefinition { Width = GridLength.Star },
@@ -795,8 +834,8 @@ public class DatePickerView : ContentView
 
         _monthSpinner = new SpinnerPickerView
         {
-            VisibleItemCount = 5,
-            ItemHeight = 44,
+            VisibleItemCount = CalendarVisibleRows,
+            ItemHeight = CalendarRowHeight,
             IsLooping = false,
             TextColor = SpinnerTextColor,
             SelectedTextColor = SpinnerSelectedTextColor,
@@ -806,8 +845,8 @@ public class DatePickerView : ContentView
 
         _yearSpinner = new SpinnerPickerView
         {
-            VisibleItemCount = 5,
-            ItemHeight = 44,
+            VisibleItemCount = CalendarVisibleRows,
+            ItemHeight = CalendarRowHeight,
             IsLooping = false,
             TextColor = SpinnerTextColor,
             SelectedTextColor = SpinnerSelectedTextColor,
@@ -829,16 +868,27 @@ public class DatePickerView : ContentView
 
         _suppressMonthYearCallbacks = true;
 
-        _monthSpinner.ItemsSource = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.MonthNames
+        // Month names never change at runtime, and the year range is only a
+        // function of Minimum/MaximumDate — cache both so reopening the picker
+        // doesn't rebuild ~150 native spinner rows every time (SpinnerPickerView
+        // rebuilds its item views whenever ItemsSource is reassigned).
+        _cachedMonthNames ??= System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.MonthNames
             .Where(m => !string.IsNullOrEmpty(m))
             .ToList();
+        if (!ReferenceEquals(_monthSpinner.ItemsSource, _cachedMonthNames))
+            _monthSpinner.ItemsSource = _cachedMonthNames;
         _monthSpinner.SelectedIndex = _displayedMonth.Month - 1;
 
         var minYear = MinimumDate?.Year ?? Math.Min(DateTime.Today.Year - 100, _displayedMonth.Year);
         var maxYear = MaximumDate?.Year ?? Math.Max(DateTime.Today.Year + 50, _displayedMonth.Year);
-        var years = Enumerable.Range(minYear, maxYear - minYear + 1).ToList();
-        _yearSpinner.ItemsSource = years;
-        _yearSpinner.SelectedIndex = years.IndexOf(_displayedMonth.Year);
+        if (_cachedYears == null || _cachedYearsMin != minYear || _cachedYearsMax != maxYear)
+        {
+            _cachedYears = Enumerable.Range(minYear, maxYear - minYear + 1).ToList();
+            _cachedYearsMin = minYear;
+            _cachedYearsMax = maxYear;
+            _yearSpinner.ItemsSource = _cachedYears;
+        }
+        _yearSpinner.SelectedIndex = _cachedYears.IndexOf(_displayedMonth.Year);
 
         _suppressMonthYearCallbacks = false;
     }
@@ -901,23 +951,57 @@ public class DatePickerView : ContentView
     {
         _showingMonthYearPicker = !_showingMonthYearPicker;
 
-        if (_calendarGrid != null) _calendarGrid.IsVisible = !_showingMonthYearPicker;
         if (_dayNamesRow != null) _dayNamesRow.IsVisible = !_showingMonthYearPicker;
-        if (_monthYearPickerGrid != null) _monthYearPickerGrid.IsVisible = _showingMonthYearPicker;
-        if (_prevMonthButton != null) _prevMonthButton.IsVisible = !_showingMonthYearPicker;
-        if (_nextMonthButton != null) _nextMonthButton.IsVisible = !_showingMonthYearPicker;
-        if (_todayButton != null) _todayButton.IsVisible = !_showingMonthYearPicker;
+        SetNavButtonsReserved(!_showingMonthYearPicker);
 
         if (_showingMonthYearPicker)
         {
             OpenMonthYearPicker();
+            ShowMonthYearCard();
         }
         else
         {
             PopulateCalendarGrid();
+            HideMonthYearCard();
         }
 
         UpdateMonthYearLabel();
+    }
+
+    /// <summary>
+    /// Hides the prev/next/today buttons visually (opacity + input-transparent)
+    /// rather than via IsVisible, so the header row's Auto height — driven by
+    /// their 44px HeightRequest — stays constant whether they're shown or not.
+    /// </summary>
+    private void SetNavButtonsReserved(bool shown)
+    {
+        var opacity = shown ? 1d : 0d;
+        if (_prevMonthButton != null) { _prevMonthButton.Opacity = opacity; _prevMonthButton.InputTransparent = !shown; }
+        if (_nextMonthButton != null) { _nextMonthButton.Opacity = opacity; _nextMonthButton.InputTransparent = !shown; }
+        if (_todayButton != null) { _todayButton.Opacity = opacity; _todayButton.InputTransparent = !shown; }
+    }
+
+    // The calendar grid underneath is never hidden — the card is a fully opaque
+    // layer that floats over it in the same cell. Toggling _calendarGrid.IsVisible
+    // was triggering a remeasure that collapsed the fixed-height container, which
+    // is exactly the resize this control is trying to avoid.
+    private async void ShowMonthYearCard()
+    {
+        if (_monthYearPickerCard == null) return;
+
+        _monthYearPickerCard.Opacity = 0;
+        _monthYearPickerCard.Scale = 0.96;
+        _monthYearPickerCard.IsVisible = true;
+        await Task.WhenAll(
+            _monthYearPickerCard.FadeTo(1, 150, Easing.CubicOut),
+            _monthYearPickerCard.ScaleTo(1, 150, Easing.CubicOut));
+    }
+
+    private void HideMonthYearCard()
+    {
+        if (_monthYearPickerCard == null) return;
+
+        _monthYearPickerCard.IsVisible = false;
     }
 
     private void OnTodayClicked(object? sender, EventArgs e)
@@ -934,12 +1018,9 @@ public class DatePickerView : ContentView
         if (_showingMonthYearPicker)
         {
             _showingMonthYearPicker = false;
-            if (_calendarGrid != null) _calendarGrid.IsVisible = true;
             if (_dayNamesRow != null) _dayNamesRow.IsVisible = true;
-            if (_monthYearPickerGrid != null) _monthYearPickerGrid.IsVisible = false;
-            if (_prevMonthButton != null) _prevMonthButton.IsVisible = true;
-            if (_nextMonthButton != null) _nextMonthButton.IsVisible = true;
-            if (_todayButton != null) _todayButton.IsVisible = true;
+            SetNavButtonsReserved(true);
+            HideMonthYearCard();
             UpdateMonthYearLabel();
         }
 
