@@ -24,6 +24,9 @@ public class SpinnerPickerView : ContentView
     private int _loopOffset;
     private double _startTranslation;
     private bool _suppressCallbacks;
+    private double _lastPanY;
+    private long _lastPanTimeMs;
+    private double _panVelocity; // px/ms, sampled during the drag for momentum on release
 
     #endregion
 
@@ -286,17 +289,28 @@ public class SpinnerPickerView : ContentView
         {
             case GestureStatus.Started:
                 _startTranslation = _itemsLayout.TranslationY;
+                _lastPanY = 0;
+                _lastPanTimeMs = Environment.TickCount64;
+                _panVelocity = 0;
                 this.AbortAnimation("Snap");
                 break;
 
             case GestureStatus.Running:
+                var now = Environment.TickCount64;
+                var dt = now - _lastPanTimeMs;
+                if (dt > 0)
+                {
+                    _panVelocity = (e.TotalY - _lastPanY) / dt;
+                    _lastPanTimeMs = now;
+                    _lastPanY = e.TotalY;
+                }
                 _itemsLayout.TranslationY = ClampTranslation(_startTranslation + e.TotalY);
                 RefreshItemTransforms();
                 break;
 
             case GestureStatus.Completed:
             case GestureStatus.Canceled:
-                SnapToNearestItem();
+                SnapToNearestItem(_panVelocity);
                 break;
         }
     }
@@ -314,11 +328,20 @@ public class SpinnerPickerView : ContentView
     private double CenterOffsetForIndex(int index)
         => ItemHeight * ((VisibleItemCount - 1) / 2.0 - index);
 
-    private async void SnapToNearestItem()
+    // How much extra travel (in ms of motion at the release velocity) to project
+    // past the finger's lift-off point, so a fast flick lands further down the
+    // list instead of stopping dead where the finger let go.
+    private const double FlingProjectionMs = 120;
+    private const double MaxFlingVelocity = 3.0; // px/ms safety clamp
+
+    private async void SnapToNearestItem(double velocityPxPerMs = 0)
     {
         if (_itemViews.Count == 0) return;
 
-        var rawIndex = (VisibleItemCount - 1) / 2.0 - _itemsLayout.TranslationY / ItemHeight;
+        velocityPxPerMs = Math.Clamp(velocityPxPerMs, -MaxFlingVelocity, MaxFlingVelocity);
+        var projectedTranslation = _itemsLayout.TranslationY + velocityPxPerMs * FlingProjectionMs;
+
+        var rawIndex = (VisibleItemCount - 1) / 2.0 - projectedTranslation / ItemHeight;
         var internalIndex = Math.Clamp((int)Math.Round(rawIndex), 0, _itemViews.Count - 1);
 
         // Resolve the actual source index, accounting for looping copies.
