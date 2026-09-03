@@ -1076,11 +1076,15 @@ public class DatePickerView : ContentView
         if (MinimumDate.HasValue && date.Date < MinimumDate.Value.Date) return;
         if (MaximumDate.HasValue && date.Date > MaximumDate.Value.Date) return;
 
-        // Navigate to the tapped month if it was an overflow day
+        // Navigate to the tapped month if it was an overflow day. The grid has to be
+        // repopulated here: the selection change that follows only repaints the cells,
+        // and in single-selection mode it sees _displayedMonth already on the tapped
+        // month and so takes its same-month path.
         if (date.Month != _displayedMonth.Month || date.Year != _displayedMonth.Year)
         {
             _displayedMonth = new DateTime(date.Year, date.Month, 1);
             UpdateMonthYearLabel();
+            PopulateCalendarGrid();
         }
 
         if (IsRangeSelectionEnabled)
