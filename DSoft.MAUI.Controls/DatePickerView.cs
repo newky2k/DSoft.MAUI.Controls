@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using DSoft.Maui.Controls.Core.Enums;
 using DSoft.Maui.Controls.Events;
 
@@ -31,6 +32,7 @@ public class DatePickerView : ContentView
     private SpinnerPickerView? _amPmPicker;
     private DateTime _displayedMonth;
     private bool _showingMonthYearPicker;
+    private bool _layoutBuilt;
     private bool _suppressTimeCallbacks;
     private bool _suppressMonthYearCallbacks;
 
@@ -320,12 +322,40 @@ public class DatePickerView : ContentView
     public DatePickerView()
     {
         _displayedMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
-        BuildLayout();
     }
 
     #endregion
 
     #region Layout Building
+
+    /// <summary>
+    /// Builds the layout the first time the control is both visible and attached to a
+    /// handler. Construction itself allocates no child views, so a picker that is never
+    /// shown — a collapsed field in a dynamic form, an unselected tab — costs nothing,
+    /// and one that is shown builds exactly once, after its initial property values
+    /// have landed, rather than as each of them is applied.
+    /// </summary>
+    private void EnsureLayoutBuilt()
+    {
+        if (_layoutBuilt || !IsVisible || Handler == null) return;
+
+        _layoutBuilt = true;
+        BuildLayout();
+    }
+
+    protected override void OnHandlerChanged()
+    {
+        base.OnHandlerChanged();
+        EnsureLayoutBuilt();
+    }
+
+    protected override void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        base.OnPropertyChanged(propertyName);
+
+        if (propertyName == IsVisibleProperty.PropertyName)
+            EnsureLayoutBuilt();
+    }
 
     private void BuildLayout()
     {
