@@ -14,6 +14,7 @@ namespace Microsoft.Maui.Hosting
             builder.ConfigureEffects(effects =>
             {
                 effects.Add<TouchEffect, TouchPlatformEffect>();
+                effects.Add<ScrollCaptureEffect, ScrollCapturePlatformEffect>();
 
             });
 
