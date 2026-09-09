@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using DSoft.Maui.Controls.Core.Enums;
 using DSoft.Maui.Controls.Events;
 
@@ -13,7 +14,8 @@ public class DatePickerView : ContentView
 
     private Grid? _calendarGrid;
     private Grid? _dayNamesRow;
-    private readonly Dictionary<DateTime, View> _dayCellViews = new();
+    private readonly List<DayCell> _dayCells = new();
+    private readonly List<Label> _dayNameLabels = new();
     private Label? _monthYearLabel;
     private Grid? _monthYearPickerGrid;
     private Border? _monthYearPickerCard;
@@ -30,6 +32,7 @@ public class DatePickerView : ContentView
     private SpinnerPickerView? _amPmPicker;
     private DateTime _displayedMonth;
     private bool _showingMonthYearPicker;
+    private bool _layoutBuilt;
     private bool _suppressTimeCallbacks;
     private bool _suppressMonthYearCallbacks;
 
@@ -68,6 +71,33 @@ public class DatePickerView : ContentView
 
     #endregion
 
+    #region Day Cell
+
+    /// <summary>
+    /// A single day cell in the calendar grid. The 42 cells are created once and then
+    /// re-stamped in place (see <see cref="ApplyDayCellState"/>), so neither paging
+    /// between months nor changing an appearance property allocates any views.
+    /// </summary>
+    private sealed class DayCell
+    {
+        public DayCell(Grid container, Border shape, Label label)
+        {
+            Container = container;
+            Shape = shape;
+            Label = label;
+        }
+
+        public Grid Container { get; }
+        public Border Shape { get; }
+        public Label Label { get; }
+
+        public DateTime Date { get; set; }
+        public bool IsCurrentMonth { get; set; }
+        public bool IsDisabled { get; set; }
+    }
+
+    #endregion
+
     #region Bindable Properties
 
     public static readonly BindableProperty ModeProperty = BindableProperty.Create(
@@ -92,7 +122,7 @@ public class DatePickerView : ContentView
 
     public static readonly BindableProperty MinimumDateProperty = BindableProperty.Create(
         nameof(MinimumDate), typeof(DateTime?), typeof(DatePickerView),
-        null, propertyChanged: OnCalendarRebuildRequired);
+        null, propertyChanged: OnCalendarRepaintRequired);
 
     public DateTime? MinimumDate
     {
@@ -102,7 +132,7 @@ public class DatePickerView : ContentView
 
     public static readonly BindableProperty MaximumDateProperty = BindableProperty.Create(
         nameof(MaximumDate), typeof(DateTime?), typeof(DatePickerView),
-        null, propertyChanged: OnCalendarRebuildRequired);
+        null, propertyChanged: OnCalendarRepaintRequired);
 
     public DateTime? MaximumDate
     {
@@ -112,7 +142,7 @@ public class DatePickerView : ContentView
 
     public static readonly BindableProperty IsRangeSelectionEnabledProperty = BindableProperty.Create(
         nameof(IsRangeSelectionEnabled), typeof(bool), typeof(DatePickerView),
-        false, propertyChanged: OnCalendarRebuildRequired);
+        false, propertyChanged: OnCalendarRepaintRequired);
 
     public bool IsRangeSelectionEnabled
     {
@@ -122,7 +152,7 @@ public class DatePickerView : ContentView
 
     public static readonly BindableProperty SelectedStartDateProperty = BindableProperty.Create(
         nameof(SelectedStartDate), typeof(DateTime?), typeof(DatePickerView),
-        null, BindingMode.TwoWay, propertyChanged: OnCalendarRebuildRequired);
+        null, BindingMode.TwoWay, propertyChanged: OnCalendarRepaintRequired);
 
     public DateTime? SelectedStartDate
     {
@@ -132,7 +162,7 @@ public class DatePickerView : ContentView
 
     public static readonly BindableProperty SelectedEndDateProperty = BindableProperty.Create(
         nameof(SelectedEndDate), typeof(DateTime?), typeof(DatePickerView),
-        null, BindingMode.TwoWay, propertyChanged: OnCalendarRebuildRequired);
+        null, BindingMode.TwoWay, propertyChanged: OnCalendarRepaintRequired);
 
     public DateTime? SelectedEndDate
     {
@@ -169,7 +199,7 @@ public class DatePickerView : ContentView
 
     public static readonly BindableProperty TodayHighlightColorProperty = BindableProperty.Create(
         nameof(TodayHighlightColor), typeof(Color), typeof(DatePickerView),
-        DefaultTodayColor, propertyChanged: OnCalendarRebuildRequired);
+        DefaultTodayColor, propertyChanged: OnCalendarRepaintRequired);
 
     public Color TodayHighlightColor
     {
@@ -179,7 +209,7 @@ public class DatePickerView : ContentView
 
     public static readonly BindableProperty SelectionColorProperty = BindableProperty.Create(
         nameof(SelectionColor), typeof(Color), typeof(DatePickerView),
-        DefaultSelectedColor, propertyChanged: OnCalendarRebuildRequired);
+        DefaultSelectedColor, propertyChanged: OnCalendarRepaintRequired);
 
     public Color SelectionColor
     {
@@ -189,7 +219,7 @@ public class DatePickerView : ContentView
 
     public static readonly BindableProperty RangeHighlightColorProperty = BindableProperty.Create(
         nameof(RangeHighlightColor), typeof(Color), typeof(DatePickerView),
-        DefaultRangeColor, propertyChanged: OnCalendarRebuildRequired);
+        DefaultRangeColor, propertyChanged: OnCalendarRepaintRequired);
 
     public Color RangeHighlightColor
     {
@@ -199,7 +229,7 @@ public class DatePickerView : ContentView
 
     public static readonly BindableProperty HeaderBackgroundColorProperty = BindableProperty.Create(
         nameof(HeaderBackgroundColor), typeof(Color), typeof(DatePickerView),
-        DefaultHeaderColor, propertyChanged: OnCalendarRebuildRequired);
+        DefaultHeaderColor, propertyChanged: OnCalendarRepaintRequired);
 
     public Color HeaderBackgroundColor
     {
@@ -209,7 +239,7 @@ public class DatePickerView : ContentView
 
     public static readonly BindableProperty DayNameColorProperty = BindableProperty.Create(
         nameof(DayNameColor), typeof(Color), typeof(DatePickerView),
-        DefaultDayNameColor, propertyChanged: OnCalendarRebuildRequired);
+        DefaultDayNameColor, propertyChanged: OnCalendarRepaintRequired);
 
     public Color DayNameColor
     {
@@ -219,7 +249,7 @@ public class DatePickerView : ContentView
 
     public static readonly BindableProperty DayColorProperty = BindableProperty.Create(
         nameof(DayColor), typeof(Color), typeof(DatePickerView),
-        DefaultDayColor, propertyChanged: OnCalendarRebuildRequired);
+        DefaultDayColor, propertyChanged: OnCalendarRepaintRequired);
 
     public Color DayColor
     {
@@ -229,7 +259,7 @@ public class DatePickerView : ContentView
 
     public static readonly BindableProperty DisabledDayColorProperty = BindableProperty.Create(
         nameof(DisabledDayColor), typeof(Color), typeof(DatePickerView),
-        DefaultDisabledColor, propertyChanged: OnCalendarRebuildRequired);
+        DefaultDisabledColor, propertyChanged: OnCalendarRepaintRequired);
 
     public Color DisabledDayColor
     {
@@ -239,7 +269,7 @@ public class DatePickerView : ContentView
 
     public static readonly BindableProperty OtherMonthDayColorProperty = BindableProperty.Create(
         nameof(OtherMonthDayColor), typeof(Color), typeof(DatePickerView),
-        DefaultOtherMonthColor, propertyChanged: OnCalendarRebuildRequired);
+        DefaultOtherMonthColor, propertyChanged: OnCalendarRepaintRequired);
 
     public Color OtherMonthDayColor
     {
@@ -292,12 +322,40 @@ public class DatePickerView : ContentView
     public DatePickerView()
     {
         _displayedMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
-        BuildLayout();
     }
 
     #endregion
 
     #region Layout Building
+
+    /// <summary>
+    /// Builds the layout the first time the control is both visible and attached to a
+    /// handler. Construction itself allocates no child views, so a picker that is never
+    /// shown — a collapsed field in a dynamic form, an unselected tab — costs nothing,
+    /// and one that is shown builds exactly once, after its initial property values
+    /// have landed, rather than as each of them is applied.
+    /// </summary>
+    private void EnsureLayoutBuilt()
+    {
+        if (_layoutBuilt || !IsVisible || Handler == null) return;
+
+        _layoutBuilt = true;
+        BuildLayout();
+    }
+
+    protected override void OnHandlerChanged()
+    {
+        base.OnHandlerChanged();
+        EnsureLayoutBuilt();
+    }
+
+    protected override void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        base.OnPropertyChanged(propertyName);
+
+        if (propertyName == IsVisibleProperty.PropertyName)
+            EnsureLayoutBuilt();
+    }
 
     private void BuildLayout()
     {
@@ -472,6 +530,7 @@ public class DatePickerView : ContentView
         };
 
         var dayNames = new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+        _dayNameLabels.Clear();
         for (var i = 0; i < 7; i++)
         {
             var lbl = new Label
@@ -485,215 +544,200 @@ public class DatePickerView : ContentView
             };
             Grid.SetColumn(lbl, i);
             grid.Add(lbl);
+            _dayNameLabels.Add(lbl);
         }
 
         return grid;
     }
 
+    /// <summary>
+    /// Creates the 6x7 grid skeleton and its 42 day cells. Runs once per control;
+    /// every later populate or repaint re-stamps the cells created here.
+    /// </summary>
+    private void EnsureCalendarSkeleton()
+    {
+        if (_calendarGrid == null || _dayCells.Count > 0) return;
+
+        for (var i = 0; i < 7; i++)
+            _calendarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
+
+        // Always a full 6 weeks (padded with adjacent-month overflow days) so the
+        // grid's height is constant across months — see CalendarAreaHeight.
+        for (var r = 0; r < CalendarVisibleRows; r++)
+            _calendarGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(CalendarRowHeight) });
+
+        _calendarGrid.Padding = new Thickness(4, 0, 4, 0);
+
+        for (var cell = 0; cell < CalendarVisibleRows * 7; cell++)
+        {
+            var dayCell = CreateDayCell();
+            Grid.SetRow(dayCell.Container, cell / 7);
+            Grid.SetColumn(dayCell.Container, cell % 7);
+            _calendarGrid.Add(dayCell.Container);
+            _dayCells.Add(dayCell);
+        }
+    }
+
+    /// <summary>
+    /// Assigns the dates of the displayed month — padded with adjacent-month overflow
+    /// days — to the existing cells and repaints them.
+    /// </summary>
     private void PopulateCalendarGrid()
     {
         if (_calendarGrid == null) return;
 
-        _calendarGrid.Children.Clear();
-        _calendarGrid.RowDefinitions.Clear();
-        _calendarGrid.ColumnDefinitions.Clear();
-        _dayCellViews.Clear();
-
-        for (var i = 0; i < 7; i++)
-            _calendarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
+        EnsureCalendarSkeleton();
 
         var firstDay = _displayedMonth;
         var daysInMonth = DateTime.DaysInMonth(firstDay.Year, firstDay.Month);
         var startDayOfWeek = (int)firstDay.DayOfWeek; // 0=Sun
 
-        // Always render a full 6 weeks (padded with adjacent-month overflow days)
-        // so the grid's height is constant across months — see CalendarAreaHeight.
-        var rowCount = CalendarVisibleRows;
-
-        for (var r = 0; r < rowCount; r++)
-            _calendarGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(CalendarRowHeight) });
-
-        _calendarGrid.Padding = new Thickness(4, 0, 4, 0);
-
-        for (var cell = 0; cell < rowCount * 7; cell++)
+        for (var cell = 0; cell < _dayCells.Count; cell++)
         {
-            var row = cell / 7;
-            var col = cell % 7;
             var dayNumber = cell - startDayOfWeek + 1;
+            var isCurrentMonth = dayNumber >= 1 && dayNumber <= daysInMonth;
 
-            var date = dayNumber >= 1 && dayNumber <= daysInMonth
-                ? new DateTime(firstDay.Year, firstDay.Month, dayNumber)
-                : (DateTime?)null;
-
-            // Show overflow days from adjacent months
-            if (date == null)
+            DateTime date;
+            if (isCurrentMonth)
             {
-                if (cell < startDayOfWeek)
-                {
-                    var prevMonth = firstDay.AddMonths(-1);
-                    var prevDays = DateTime.DaysInMonth(prevMonth.Year, prevMonth.Month);
-                    date = new DateTime(prevMonth.Year, prevMonth.Month, prevDays - (startDayOfWeek - cell - 1));
-                }
-                else
-                {
-                    var nextMonth = firstDay.AddMonths(1);
-                    date = new DateTime(nextMonth.Year, nextMonth.Month, dayNumber - daysInMonth);
-                }
+                date = new DateTime(firstDay.Year, firstDay.Month, dayNumber);
+            }
+            else if (cell < startDayOfWeek)
+            {
+                var prevMonth = firstDay.AddMonths(-1);
+                var prevDays = DateTime.DaysInMonth(prevMonth.Year, prevMonth.Month);
+                date = new DateTime(prevMonth.Year, prevMonth.Month, prevDays - (startDayOfWeek - cell - 1));
+            }
+            else
+            {
+                var nextMonth = firstDay.AddMonths(1);
+                date = new DateTime(nextMonth.Year, nextMonth.Month, dayNumber - daysInMonth);
             }
 
-            var dayView = CreateDayCell(date.Value, dayNumber >= 1 && dayNumber <= daysInMonth);
-            Grid.SetRow(dayView, row);
-            Grid.SetColumn(dayView, col);
-            _calendarGrid.Add(dayView);
-            _dayCellViews[date.Value] = dayView;
+            var dayCell = _dayCells[cell];
+            dayCell.Date = date;
+            dayCell.IsCurrentMonth = isCurrentMonth;
+            ApplyDayCellState(dayCell);
         }
     }
 
     /// <summary>
-    /// Rebuilds a single day cell in place, e.g. after a selection change that
+    /// Repaints every cell — plus the header and day-name row — without touching the
+    /// dates the cells hold.
+    /// </summary>
+    private void RepaintCalendar()
+    {
+        if (_headerGrid != null)
+            _headerGrid.BackgroundColor = HeaderBackgroundColor;
+
+        foreach (var lbl in _dayNameLabels)
+            lbl.TextColor = DayNameColor;
+
+        foreach (var cell in _dayCells)
+            ApplyDayCellState(cell);
+    }
+
+    /// <summary>
+    /// Repaints a single day cell in place, e.g. after a selection change that
     /// doesn't require repainting the whole visible month.
     /// </summary>
     private void RefreshDayCell(DateTime date)
     {
         date = date.Date;
-        if (_calendarGrid == null) return;
-        if (!_dayCellViews.TryGetValue(date, out var oldView)) return;
 
-        var isCurrentMonth = date.Year == _displayedMonth.Year && date.Month == _displayedMonth.Month;
-        var row = Grid.GetRow(oldView);
-        var col = Grid.GetColumn(oldView);
+        foreach (var cell in _dayCells)
+        {
+            if (cell.Date.Date != date) continue;
 
-        var newView = CreateDayCell(date, isCurrentMonth);
-        Grid.SetRow(newView, row);
-        Grid.SetColumn(newView, col);
-
-        _calendarGrid.Children.Remove(oldView);
-        _calendarGrid.Children.Add(newView);
-        _dayCellViews[date] = newView;
+            ApplyDayCellState(cell);
+            return;
+        }
     }
 
-    private View CreateDayCell(DateTime date, bool isCurrentMonth)
+    /// <summary>
+    /// Builds an empty cell. Every cell has the same shape — a container grid holding a
+    /// centred <see cref="Border"/> around the day label — so any state can be expressed
+    /// by changing colours alone. The plain (unselected, not-today) look is a transparent
+    /// border with zero stroke thickness.
+    /// </summary>
+    private DayCell CreateDayCell()
     {
-        var today = DateTime.Today;
-        var isToday = date.Date == today;
-        var isSelected = !IsRangeSelectionEnabled && date.Date == SelectedDate.Date;
-        var isDisabled = (MinimumDate.HasValue && date.Date < MinimumDate.Value.Date)
-                      || (MaximumDate.HasValue && date.Date > MaximumDate.Value.Date);
-
-        var isRangeStart = IsRangeSelectionEnabled && SelectedStartDate.HasValue && date.Date == SelectedStartDate.Value.Date;
-        var isRangeEnd = IsRangeSelectionEnabled && SelectedEndDate.HasValue && date.Date == SelectedEndDate.Value.Date;
-        var isInRange = IsRangeSelectionEnabled
-            && SelectedStartDate.HasValue && SelectedEndDate.HasValue
-            && date.Date > SelectedStartDate.Value.Date
-            && date.Date < SelectedEndDate.Value.Date;
-
-        Color bgColor;
-        Color textColor;
-
-        if (isRangeStart || isRangeEnd)
-        {
-            bgColor = SelectionColor;
-            textColor = Colors.White;
-        }
-        else if (isSelected)
-        {
-            bgColor = SelectionColor;
-            textColor = Colors.White;
-        }
-        else if (isInRange)
-        {
-            bgColor = RangeHighlightColor;
-            textColor = DayColor;
-        }
-        else if (isToday)
-        {
-            bgColor = Colors.Transparent;
-            textColor = TodayHighlightColor;
-        }
-        else if (!isCurrentMonth)
-        {
-            bgColor = Colors.Transparent;
-            textColor = OtherMonthDayColor;
-        }
-        else if (isDisabled)
-        {
-            bgColor = Colors.Transparent;
-            textColor = DisabledDayColor;
-        }
-        else
-        {
-            bgColor = Colors.Transparent;
-            textColor = DayColor;
-        }
-
         var label = new Label
         {
-            Text = date.Day.ToString(),
             HorizontalTextAlignment = TextAlignment.Center,
             VerticalTextAlignment = TextAlignment.Center,
-            TextColor = textColor,
             FontSize = 15,
-            FontAttributes = isToday && !isSelected && !isRangeStart && !isRangeEnd ? FontAttributes.Bold : FontAttributes.None,
         };
 
-        View cellContent;
-
-        if (isSelected || isRangeStart || isRangeEnd)
+        var shape = new Border
         {
-            cellContent = new Border
-            {
-                BackgroundColor = bgColor,
-                StrokeThickness = 0,
-                StrokeShape = new Microsoft.Maui.Controls.Shapes.Ellipse(),
-                WidthRequest = 36,
-                HeightRequest = 36,
-                HorizontalOptions = LayoutOptions.Center,
-                VerticalOptions = LayoutOptions.Center,
-                Content = label,
-            };
-        }
-        else if (isToday)
-        {
-            // Ring around today
-            cellContent = new Border
-            {
-                BackgroundColor = Colors.Transparent,
-                Stroke = TodayHighlightColor,
-                StrokeThickness = 2,
-                StrokeShape = new Microsoft.Maui.Controls.Shapes.Ellipse(),
-                WidthRequest = 36,
-                HeightRequest = 36,
-                HorizontalOptions = LayoutOptions.Center,
-                VerticalOptions = LayoutOptions.Center,
-                Content = label,
-            };
-        }
-        else
-        {
-            var innerGrid = new Grid
-            {
-                BackgroundColor = isInRange ? RangeHighlightColor : Colors.Transparent,
-            };
-            innerGrid.Add(label);
-            cellContent = innerGrid;
-        }
-
-        var container = new Grid
-        {
-            HeightRequest = 44,
-            BackgroundColor = isInRange ? RangeHighlightColor : Colors.Transparent,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.Ellipse(),
+            WidthRequest = 36,
+            HeightRequest = 36,
+            HorizontalOptions = LayoutOptions.Center,
+            VerticalOptions = LayoutOptions.Center,
+            Content = label,
         };
-        container.Add(cellContent);
 
-        if (!isDisabled)
+        var container = new Grid { HeightRequest = 44 };
+        container.Add(shape);
+
+        var cell = new DayCell(container, shape, label);
+
+        // Attached once. Disabled dates are gated at tap time rather than by adding and
+        // removing the recognizer, so a min/max change never needs the cell rebuilt.
+        var tap = new TapGestureRecognizer();
+        tap.Tapped += (s, e) =>
         {
-            var tap = new TapGestureRecognizer();
-            var capturedDate = date;
-            tap.Tapped += (s, e) => OnDayTapped(capturedDate);
-            container.GestureRecognizers.Add(tap);
-        }
+            if (cell.IsDisabled) return;
+            OnDayTapped(cell.Date);
+        };
+        container.GestureRecognizers.Add(tap);
 
-        return container;
+        return cell;
+    }
+
+    /// <summary>
+    /// Stamps the current selection, range and enabled state — and the appearance
+    /// properties — onto an existing cell. Allocates nothing.
+    /// </summary>
+    private void ApplyDayCellState(DayCell cell)
+    {
+        var date = cell.Date.Date;
+        var isToday = date == DateTime.Today;
+        var isSelected = !IsRangeSelectionEnabled && date == SelectedDate.Date;
+        var isDisabled = (MinimumDate.HasValue && date < MinimumDate.Value.Date)
+                      || (MaximumDate.HasValue && date > MaximumDate.Value.Date);
+
+        var isRangeStart = IsRangeSelectionEnabled && SelectedStartDate.HasValue && date == SelectedStartDate.Value.Date;
+        var isRangeEnd = IsRangeSelectionEnabled && SelectedEndDate.HasValue && date == SelectedEndDate.Value.Date;
+        var isInRange = IsRangeSelectionEnabled
+            && SelectedStartDate.HasValue && SelectedEndDate.HasValue
+            && date > SelectedStartDate.Value.Date
+            && date < SelectedEndDate.Value.Date;
+
+        var isHighlighted = isSelected || isRangeStart || isRangeEnd;
+        var showTodayRing = isToday && !isHighlighted;
+
+        Color textColor;
+        if (isHighlighted) textColor = Colors.White;
+        else if (isInRange) textColor = DayColor;
+        else if (isToday) textColor = TodayHighlightColor;
+        else if (!cell.IsCurrentMonth) textColor = OtherMonthDayColor;
+        else if (isDisabled) textColor = DisabledDayColor;
+        else textColor = DayColor;
+
+        cell.IsDisabled = isDisabled;
+
+        cell.Label.Text = date.Day.ToString();
+        cell.Label.TextColor = textColor;
+        cell.Label.FontAttributes = showTodayRing ? FontAttributes.Bold : FontAttributes.None;
+
+        cell.Shape.BackgroundColor = isHighlighted ? SelectionColor : Colors.Transparent;
+        cell.Shape.Stroke = showTodayRing ? TodayHighlightColor : Colors.Transparent;
+        cell.Shape.StrokeThickness = showTodayRing ? 2 : 0;
+
+        cell.Container.BackgroundColor = isInRange ? RangeHighlightColor : Colors.Transparent;
     }
 
     private Grid BuildTimeSection()
@@ -937,7 +981,7 @@ public class DatePickerView : ContentView
         PopulateCalendarGrid();
     }
 
-    private void OnNextMonthClicked(object? sender, EventArgs e)
+    private void OnNextMonthClicked(object? sender, EventArgs e) 
     {
         var newMonth = _displayedMonth.AddMonths(1);
         if (MaximumDate.HasValue && newMonth > new DateTime(MaximumDate.Value.Year, MaximumDate.Value.Month, 1))
@@ -1032,11 +1076,15 @@ public class DatePickerView : ContentView
         if (MinimumDate.HasValue && date.Date < MinimumDate.Value.Date) return;
         if (MaximumDate.HasValue && date.Date > MaximumDate.Value.Date) return;
 
-        // Navigate to the tapped month if it was an overflow day
+        // Navigate to the tapped month if it was an overflow day. The grid has to be
+        // repopulated here: the selection change that follows only repaints the cells,
+        // and in single-selection mode it sees _displayedMonth already on the tapped
+        // month and so takes its same-month path.
         if (date.Month != _displayedMonth.Month || date.Year != _displayedMonth.Year)
         {
             _displayedMonth = new DateTime(date.Year, date.Month, 1);
             UpdateMonthYearLabel();
+            PopulateCalendarGrid();
         }
 
         if (IsRangeSelectionEnabled)
@@ -1167,8 +1215,13 @@ public class DatePickerView : ContentView
         control.UpdateTimeSelection();
     }
 
-    private static void OnCalendarRebuildRequired(BindableObject bindable, object oldValue, object newValue)
-        => ((DatePickerView)bindable).PopulateCalendarGrid();
+    /// <summary>
+    /// The appearance and selection-state properties can only change how the existing
+    /// cells are painted — never the grid's shape or the dates it shows — so they
+    /// repaint in place rather than tearing down and rebuilding all 42 cells.
+    /// </summary>
+    private static void OnCalendarRepaintRequired(BindableObject bindable, object oldValue, object newValue)
+        => ((DatePickerView)bindable).RepaintCalendar();
 
     private static void OnTimeRebuildRequired(BindableObject bindable, object oldValue, object newValue)
         => ((DatePickerView)bindable).PopulateTimePickers();
