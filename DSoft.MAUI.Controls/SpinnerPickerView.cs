@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Specialized;
 using System.Reflection;
 using DSoft.Maui.Controls.Events;
+using DSoft.Maui.Controls.TouchTracking;
 
 namespace DSoft.Maui.Controls;
 
@@ -14,7 +15,7 @@ public class SpinnerPickerView : ContentView
 {
     #region Fields
 
-    private readonly VerticalStackLayout _itemsLayout;
+    private readonly Grid _itemsHost;
     private readonly RowDefinition _centerRowDef;
     private readonly BoxView _topLine;
     private readonly BoxView _bottomLine;
@@ -22,6 +23,7 @@ public class SpinnerPickerView : ContentView
     private int _originalCount;
     private int _loopCopies;
     private int _loopOffset;
+    private double _scrollOffset;
     private double _startTranslation;
     private bool _suppressCallbacks;
     private double _lastPanY;
@@ -226,9 +228,18 @@ public class SpinnerPickerView : ContentView
 
     public SpinnerPickerView()
     {
-        _itemsLayout = new VerticalStackLayout
+        // Every row lives in the same cell and is placed by its own TranslationY
+        // rather than by stacking. A stack positions each row after the measured
+        // height of the one before it, and Android rounds that measured height to
+        // whole pixels (44dp at 2.625 density measures 115px, not 115.5), so rows
+        // drift about half a pixel each from the ItemHeight grid the scroll maths
+        // assumes. Fifty rows in — where a looping column sits — the drift is a
+        // visible fraction of a row, and columns with different item counts stop
+        // sharing a baseline. Translations are floats and are not quantised, so
+        // giving every row the same layout position and its own translation keeps
+        // all columns on the same grid.
+        _itemsHost = new Grid
         {
-            Spacing = 0,
             VerticalOptions = LayoutOptions.Start,
         };
 
@@ -260,9 +271,9 @@ public class SpinnerPickerView : ContentView
             }
         };
 
-        Grid.SetRow(_itemsLayout, 0);
-        Grid.SetRowSpan(_itemsLayout, 3);
-        grid.Add(_itemsLayout);
+        Grid.SetRow(_itemsHost, 0);
+        Grid.SetRowSpan(_itemsHost, 3);
+        grid.Add(_itemsHost);
 
         Grid.SetRow(_topLine, 0);
         grid.Add(_topLine);
@@ -273,6 +284,12 @@ public class SpinnerPickerView : ContentView
         var pan = new PanGestureRecognizer();
         pan.PanUpdated += OnPanUpdated;
         grid.GestureRecognizers.Add(pan);
+
+        // Android's ScrollView intercepts the touch stream as soon as it sees a
+        // vertical drag, which cancels the pan above and leaves the wheel dead
+        // whenever the picker is hosted inside one. This effect claims the gesture
+        // for the wheel; it is a no-op on the other platforms.
+        grid.Effects.Add(new ScrollCaptureEffect());
 
         grid.IsClippedToBounds = true;
         Content = grid;
@@ -288,7 +305,7 @@ public class SpinnerPickerView : ContentView
         switch (e.StatusType)
         {
             case GestureStatus.Started:
-                _startTranslation = _itemsLayout.TranslationY;
+                _startTranslation = _scrollOffset;
                 _lastPanY = 0;
                 _lastPanTimeMs = Environment.TickCount64;
                 _panVelocity = 0;
@@ -304,7 +321,7 @@ public class SpinnerPickerView : ContentView
                     _lastPanTimeMs = now;
                     _lastPanY = e.TotalY;
                 }
-                _itemsLayout.TranslationY = ClampTranslation(_startTranslation + e.TotalY);
+                _scrollOffset = ClampTranslation(_startTranslation + e.TotalY);
                 RefreshItemTransforms();
                 break;
 
@@ -339,7 +356,7 @@ public class SpinnerPickerView : ContentView
         if (_itemViews.Count == 0) return;
 
         velocityPxPerMs = Math.Clamp(velocityPxPerMs, -MaxFlingVelocity, MaxFlingVelocity);
-        var projectedTranslation = _itemsLayout.TranslationY + velocityPxPerMs * FlingProjectionMs;
+        var projectedTranslation = _scrollOffset + velocityPxPerMs * FlingProjectionMs;
 
         var rawIndex = (VisibleItemCount - 1) / 2.0 - projectedTranslation / ItemHeight;
         var internalIndex = Math.Clamp((int)Math.Round(rawIndex), 0, _itemViews.Count - 1);
@@ -355,7 +372,7 @@ public class SpinnerPickerView : ContentView
         // user always has room to scroll in either direction.
         if (IsLooping && _originalCount > 0)
         {
-            _itemsLayout.TranslationY = CenterOffsetForIndex(_loopOffset + actualIndex);
+            _scrollOffset = CenterOffsetForIndex(_loopOffset + actualIndex);
             RefreshItemTransforms();
         }
 
@@ -375,8 +392,19 @@ public class SpinnerPickerView : ContentView
 
     private Task AnimateToIndex(int internalIndex)
     {
-        var startY = _itemsLayout.TranslationY;
+        var startY = _scrollOffset;
         var targetY = CenterOffsetForIndex(internalIndex);
+
+        // Setting SelectedIndex on a picker that has not been realised yet — the
+        // usual case when a page assigns it from its constructor — has nothing to
+        // animate, and asking for an animation manager before there is a window
+        // throws. Jump to the target instead.
+        if (Handler == null)
+        {
+            _scrollOffset = targetY;
+            RefreshItemTransforms();
+            return Task.CompletedTask;
+        }
 
         this.AbortAnimation("Snap");
 
@@ -384,14 +412,14 @@ public class SpinnerPickerView : ContentView
 
         new Animation(v =>
         {
-            _itemsLayout.TranslationY = v;
+            _scrollOffset = v;
             RefreshItemTransforms();
         }, startY, targetY, Easing.SpringOut)
         .Commit(this, "Snap", 16, 300, finished: (_, cancelled) =>
         {
             if (!cancelled)
             {
-                _itemsLayout.TranslationY = targetY;
+                _scrollOffset = targetY;
                 RefreshItemTransforms();
             }
             tcs.TrySetResult(true);
@@ -400,18 +428,32 @@ public class SpinnerPickerView : ContentView
         return tcs.Task;
     }
 
+    // Rows further than this many rows from the centre are off-screen. They are
+    // parked instead of positioned, so a drag only writes properties on the handful
+    // of rows that can actually be seen rather than on every copy in a looping list.
+    private const double CullMarginRows = 2;
+    private const double ParkedTranslation = -100000;
+
     private void RefreshItemTransforms()
     {
         if (_itemViews.Count == 0) return;
 
         var controlCenterY = ItemHeight * VisibleItemCount / 2.0;
+        var cullDistance = VisibleItemCount / 2.0 + CullMarginRows;
 
         for (var i = 0; i < _itemViews.Count; i++)
         {
             var view = _itemViews[i];
-            var itemCenterY = (i + 0.5) * ItemHeight + _itemsLayout.TranslationY;
-            var distance = Math.Abs(itemCenterY - controlCenterY) / ItemHeight;
+            var top = i * ItemHeight + _scrollOffset;
+            var distance = Math.Abs(top + ItemHeight / 2.0 - controlCenterY) / ItemHeight;
 
+            if (distance > cullDistance)
+            {
+                view.TranslationY = ParkedTranslation;
+                continue;
+            }
+
+            view.TranslationY = top;
             view.Opacity = Math.Max(0.2, 1.0 - distance * 0.5);
             view.Scale = Math.Max(0.7, 1.0 - distance * 0.15);
 
@@ -448,6 +490,7 @@ public class SpinnerPickerView : ContentView
             var view = (View)ItemTemplate.CreateContent();
             view.BindingContext = item;
             view.HeightRequest = ItemHeight;
+            view.VerticalOptions = LayoutOptions.Start;
             return view;
         }
 
@@ -457,6 +500,7 @@ public class SpinnerPickerView : ContentView
             HorizontalTextAlignment = TextAlignment.Center,
             VerticalTextAlignment = TextAlignment.Center,
             HeightRequest = ItemHeight,
+            VerticalOptions = LayoutOptions.Start,
             FontSize = FontSize,
             TextColor = TextColor,
         };
@@ -465,7 +509,7 @@ public class SpinnerPickerView : ContentView
     private void BuildItems()
     {
         _itemViews.Clear();
-        _itemsLayout.Children.Clear();
+        _itemsHost.Children.Clear();
 
         if (ItemsSource == null) return;
 
@@ -485,13 +529,13 @@ public class SpinnerPickerView : ContentView
             {
                 var view = CreateItemView(item);
                 _itemViews.Add(view);
-                _itemsLayout.Children.Add(view);
+                _itemsHost.Children.Add(view);
             }
         }
 
         var safeIndex = Math.Clamp(SelectedIndex, 0, _originalCount - 1);
         var startInternalIndex = _loopOffset + safeIndex;
-        _itemsLayout.TranslationY = CenterOffsetForIndex(startInternalIndex);
+        _scrollOffset = CenterOffsetForIndex(startInternalIndex);
         RefreshItemTransforms();
     }
 
@@ -525,9 +569,9 @@ public class SpinnerPickerView : ContentView
         // When looping, normalise to middle copy before animating so there's always room to scroll.
         if (control.IsLooping && control._originalCount > 0)
         {
-            var currentRaw = (control.VisibleItemCount - 1) / 2.0 - control._itemsLayout.TranslationY / control.ItemHeight;
+            var currentRaw = (control.VisibleItemCount - 1) / 2.0 - control._scrollOffset / control.ItemHeight;
             var currentActual = ((int)Math.Round(currentRaw) % control._originalCount + control._originalCount) % control._originalCount;
-            control._itemsLayout.TranslationY = control.CenterOffsetForIndex(control._loopOffset + currentActual);
+            control._scrollOffset = control.CenterOffsetForIndex(control._loopOffset + currentActual);
             _ = control.AnimateToIndex(control._loopOffset + index);
         }
         else
